@@ -2,7 +2,10 @@ module github.com/masahide/ssh-agent-win
 
 go 1.17
 
-require github.com/wailsapp/wails/v2 v2.0.0-beta.27
+require (
+	github.com/cwchiu/go-winapi v0.0.0-20130629162214-19f502a3f526
+	github.com/wailsapp/wails/v2 v2.0.0-beta.27
+)
 
 require (
 	github.com/andybalholm/brotli v1.0.2 // indirect
