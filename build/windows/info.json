@@ -1,0 +1,15 @@
+{
+	"fixed": {
+		"file_version": "1.0.0"
+	},
+	"info": {
+		"0000": {
+			"ProductVersion": "1.0.0",
+			"CompanyName": "ssh-agent-win",
+			"FileDescription": "ssh-agent-win",
+			"LegalCopyright": "Copyright.........",
+			"ProductName": "ssh-agent-win",
+			"Comments": "Built using Wails (https://wails.app)"
+		}
+	}
+}
