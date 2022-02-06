@@ -13,18 +13,24 @@ import (
 type NamedPipe struct {
 	agent.Agent
 	Debug bool
+	Name  string
 }
 
 func (a *NamedPipe) RunAgent() error {
-	namedPipeName := "openssh-ssh-agent"
-	pipePath := `\\.\pipe\` + namedPipeName
 
-	cfg := &winio.PipeConfig{}
-	pipe, err := winio.ListenPipe(pipePath, cfg)
+	pipePath := map[bool]string{
+		true:  `\\.\pipe\openssh-ssh-agent`,
+		false: `\\.\pipe\` + a.Name,
+	}[len(a.Name) == 0]
+
+	pipe, err := winio.ListenPipe(pipePath, &winio.PipeConfig{})
 	if err != nil {
-		return fmt.Errorf("Failed open named pipe %s, err: '%w'\n", pipePath, err)
+		return fmt.Errorf("Failed open named-pipe %s, err:%w", pipePath, err)
 	}
 	defer pipe.Close()
+	if a.Debug {
+		log.Printf("Open named-pipe: %s", pipePath)
+	}
 	for {
 		conn, err := pipe.Accept()
 		if err != nil {
