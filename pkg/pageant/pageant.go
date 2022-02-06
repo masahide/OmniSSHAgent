@@ -23,6 +23,7 @@ const (
 
 type Pageant struct {
 	agent.Agent
+	Debug bool
 }
 
 type copyDataStruct struct {
@@ -36,7 +37,7 @@ func (a *Pageant) myRegisterClass(hInstance winapi.HINSTANCE) winapi.ATOM {
 
 	wc.CbSize = uint32(unsafe.Sizeof(winapi.WNDCLASSEX{}))
 	wc.Style = 0
-	wc.LpfnWndProc = syscall.NewCallback(a.WndProc)
+	wc.LpfnWndProc = syscall.NewCallback(a.wndProc)
 	wc.CbClsExtra = 0
 	wc.CbWndExtra = 0
 	wc.HInstance = hInstance
@@ -49,7 +50,7 @@ func (a *Pageant) myRegisterClass(hInstance winapi.HINSTANCE) winapi.ATOM {
 	return winapi.RegisterClassEx(&wc)
 }
 
-func (a *Pageant) WndProc(hWnd winapi.HWND, message uint32, wParam uintptr, lParam uintptr) uintptr {
+func (a *Pageant) wndProc(hWnd winapi.HWND, message uint32, wParam uintptr, lParam uintptr) uintptr {
 	if message == winapi.WM_COPYDATA {
 		err := a.handleCopyMessage((*copyDataStruct)(unsafe.Pointer(lParam)))
 		if err != nil {
@@ -81,13 +82,12 @@ func (a *Pageant) handleCopyMessage(cdata *copyDataStruct) error {
 	if cdata.dwData != id {
 		return errors.New("ID is different")
 	}
-	log.Println("Received a PUTTY message")
+	if a.Debug {
+		log.Println("Pageant: received message")
+	}
 
 	m := ptr2Array(cdata.lpData, int(cdata.cbData-1))
 	mapname := string(m[:cdata.cbData-1])
-
-	log.Println("Using mapname:", mapname)
-
 	ret, _, _ := openFileMappingW.Call(
 		uintptr(fileMapAllAccess),
 		uintptr(zeroUint32),
@@ -107,14 +107,13 @@ func (a *Pageant) handleCopyMessage(cdata *copyDataStruct) error {
 	binary.Read(buf, binary.BigEndian, &ln)
 	m = ptr2Array(addr, int(ln)+4) // read ssh-agent message
 
-	log.Println("addr:", addr, " length:", ln)
-
 	out := bytes.Buffer{}
-	rw := struct {
-		io.Reader
-		io.Writer
-	}{bytes.NewBuffer(m), &out}
-	err := agent.ServeAgent(a, rw)
+	err := agent.ServeAgent(a,
+		struct {
+			io.Reader
+			io.Writer
+		}{bytes.NewBuffer(m), &out},
+	)
 	if err == nil {
 		return fmt.Errorf("ServeAgent err:%v", err)
 	}
@@ -122,13 +121,11 @@ func (a *Pageant) handleCopyMessage(cdata *copyDataStruct) error {
 		return fmt.Errorf("ServeAgent err:%w", err)
 	}
 	m = ptr2Array(addr, out.Len())
-	log.Printf("Writing %v bytes to memory", out.Len())
-
 	copy(m, out.Bytes()[:out.Len()])
 	return nil
 }
 
-func InitInstance(hInstance winapi.HINSTANCE, nCmdShow int) bool {
+func initInstance(hInstance winapi.HINSTANCE, nCmdShow int) bool {
 	hWnd := winapi.CreateWindowEx(
 		winapi.WS_EX_TRANSPARENT|winapi.WS_EX_TOOLWINDOW|winapi.WS_EX_TOPMOST|winapi.WS_EX_NOACTIVATE,
 		syscall.StringToUTF16Ptr(className),
@@ -148,7 +145,7 @@ func (a *Pageant) RunAgent() {
 	hInstance := winapi.GetModuleHandle(nil)
 	a.myRegisterClass(hInstance)
 
-	if InitInstance(hInstance, winapi.SW_SHOW) == false {
+	if initInstance(hInstance, winapi.SW_SHOW) == false {
 		return
 	}
 	var msg winapi.MSG

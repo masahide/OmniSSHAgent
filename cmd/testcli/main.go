@@ -4,13 +4,14 @@ import (
 	"log"
 
 	"github.com/kelseyhightower/envconfig"
+	"github.com/masahide/ssh-agent-win/pkg/namedpipe"
 	"github.com/masahide/ssh-agent-win/pkg/pageant"
 
 	"golang.org/x/crypto/ssh/agent"
 )
 
 type specification struct {
-	Keyfile string
+	Debug bool
 }
 
 func main() {
@@ -20,18 +21,12 @@ func main() {
 	if err != nil {
 		log.Fatal(err)
 	}
+	keys := agent.NewKeyring()
+	pa := &pageant.Pageant{Agent: keys, Debug: s.Debug}
+	na := &namedpipe.NamedPipe{Agent: keys, Debug: s.Debug}
 
-	p := &pageant.Pageant{
-		Agent: agent.NewKeyring(),
-	}
-
-	keys, err := p.List()
-	if err != nil {
-		log.Fatal(err)
-	}
-	for _, k := range keys {
-		log.Printf("key:%s", k.String())
-	}
-	log.Println("start pageant..")
-	p.RunAgent()
+	log.Println("start agents..")
+	go pa.RunAgent()
+	err = na.RunAgent()
+	log.Println(err)
 }
