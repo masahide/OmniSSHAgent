@@ -1,11 +1,19 @@
 package pageant
 
 import (
+	"bytes"
+	"encoding/binary"
+	"errors"
+	"fmt"
+	"io"
+	"log"
+	"os"
 	"reflect"
 	"syscall"
 	"unsafe"
 
 	"github.com/cwchiu/go-winapi"
+	"golang.org/x/crypto/ssh/agent"
 )
 
 const (
@@ -13,18 +21,22 @@ const (
 	id        = 0x804e50ba
 )
 
+type Pageant struct {
+	agent.Agent
+}
+
 type copyDataStruct struct {
 	dwData uintptr
 	cbData uint32
 	lpData uintptr
 }
 
-func MyRegisterClass(hInstance winapi.HINSTANCE) winapi.ATOM {
+func (a *Pageant) myRegisterClass(hInstance winapi.HINSTANCE) winapi.ATOM {
 	var wc winapi.WNDCLASSEX
 
 	wc.CbSize = uint32(unsafe.Sizeof(winapi.WNDCLASSEX{}))
 	wc.Style = 0
-	wc.LpfnWndProc = syscall.NewCallback(WndProc)
+	wc.LpfnWndProc = syscall.NewCallback(a.WndProc)
 	wc.CbClsExtra = 0
 	wc.CbWndExtra = 0
 	wc.HInstance = hInstance
@@ -37,10 +49,12 @@ func MyRegisterClass(hInstance winapi.HINSTANCE) winapi.ATOM {
 	return winapi.RegisterClassEx(&wc)
 }
 
-func WndProc(hWnd winapi.HWND, message uint32, wParam uintptr, lParam uintptr) uintptr {
+func (a *Pageant) WndProc(hWnd winapi.HWND, message uint32, wParam uintptr, lParam uintptr) uintptr {
 	if message == winapi.WM_COPYDATA {
-		ldata := (*copyDataStruct)(unsafe.Pointer(lParam))
-		handleCopyMessage(ldata)
+		err := a.handleCopyMessage((*copyDataStruct)(unsafe.Pointer(lParam)))
+		if err != nil {
+			log.Print(err)
+		}
 		return 1
 	}
 	return winapi.DefWindowProc(hWnd, uint32(message), wParam, lParam)
@@ -59,15 +73,59 @@ func ptr2Array(addr uintptr, sz int) (m mMap) {
 }
 
 var kernel32 = syscall.NewLazyDLL("kernel32.dll")
-var OpenFileMappingW = kernel32.NewProc("OpenFileMappingW")
+var openFileMappingW = kernel32.NewProc("OpenFileMappingW")
+var fileMapAllAccess = uint32(0xF001F)
+var zeroUint32 = uint32(0)
 
-func handleCopyMessage(cdata *copyDataStruct) {
+func (a *Pageant) handleCopyMessage(cdata *copyDataStruct) error {
 	if cdata.dwData != id {
-		return
+		return errors.New("ID is different")
 	}
+	log.Println("Received a PUTTY message")
+
 	m := ptr2Array(cdata.lpData, int(cdata.cbData-1))
 	mapname := string(m[:cdata.cbData-1])
 
+	log.Println("Using mapname:", mapname)
+
+	ret, _, _ := openFileMappingW.Call(
+		uintptr(fileMapAllAccess),
+		uintptr(zeroUint32),
+		uintptr(unsafe.Pointer(syscall.StringToUTF16Ptr(mapname))))
+	h := syscall.Handle(ret)
+	if h == 0 {
+		return errors.New("err:OpenFileMappingW")
+	}
+	defer syscall.CloseHandle(h)
+	addr, errno := syscall.MapViewOfFile(h, uint32(syscall.FILE_MAP_WRITE), 0, 0, 0)
+	if addr == 0 {
+		return fmt.Errorf("Failed: %s", os.NewSyscallError("MapViewOfFile", errno))
+	}
+	m = ptr2Array(addr, 4) // message size
+	buf := bytes.NewBuffer(m)
+	ln := int32(0)
+	binary.Read(buf, binary.BigEndian, &ln)
+	m = ptr2Array(addr, int(ln)+4) // read ssh-agent message
+
+	log.Println("addr:", addr, " length:", ln)
+
+	out := bytes.Buffer{}
+	rw := struct {
+		io.Reader
+		io.Writer
+	}{bytes.NewBuffer(m), &out}
+	err := agent.ServeAgent(a, rw)
+	if err == nil {
+		return fmt.Errorf("ServeAgent err:%v", err)
+	}
+	if err != io.EOF {
+		return fmt.Errorf("ServeAgent err:%w", err)
+	}
+	m = ptr2Array(addr, out.Len())
+	log.Printf("Writing %v bytes to memory", out.Len())
+
+	copy(m, out.Bytes()[:out.Len()])
+	return nil
 }
 
 func InitInstance(hInstance winapi.HINSTANCE, nCmdShow int) bool {
@@ -86,9 +144,9 @@ func InitInstance(hInstance winapi.HINSTANCE, nCmdShow int) bool {
 	return true
 }
 
-func RunAgent() {
+func (a *Pageant) RunAgent() {
 	hInstance := winapi.GetModuleHandle(nil)
-	MyRegisterClass(hInstance)
+	a.myRegisterClass(hInstance)
 
 	if InitInstance(hInstance, winapi.SW_SHOW) == false {
 		return
