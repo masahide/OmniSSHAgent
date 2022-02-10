@@ -5,7 +5,9 @@ import (
 	"flag"
 	"log"
 
+	"github.com/getlantern/systray"
 	"github.com/kelseyhightower/envconfig"
+	"github.com/masahide/ssh-agent-win/cmd/testcli/icon"
 	"github.com/masahide/ssh-agent-win/pkg/namedpipe"
 	"github.com/masahide/ssh-agent-win/pkg/npipe2stdin"
 	"github.com/masahide/ssh-agent-win/pkg/pageant"
@@ -50,6 +52,7 @@ func main() {
 		proxy(s.PipeName)
 		return
 	}
+	systray.Run(onReady, onExit)
 
 	keys := agent.NewKeyring()
 	pa := &pageant.Pageant{Agent: keys, Debug: s.Debug}
@@ -61,4 +64,19 @@ func main() {
 	go ua.RunAgent()
 	err = na.RunAgent()
 	log.Println(err)
+}
+
+func onReady() {
+	systray.SetTemplateIcon(icon.Data, icon.Data)
+	systray.SetTitle("ssh-agent-win")
+	systray.SetTooltip("ssh-agent")
+	mQuitOrig := systray.AddMenuItem("Exit ssh-agent-win", "Exit the app")
+	go func() {
+		<-mQuitOrig.ClickedCh
+		systray.Quit()
+	}()
+}
+
+func onExit() {
+
 }
