@@ -1,0 +1,72 @@
+# SSH-Aget chaos map for windows
+
+
+@startuml
+
+skinparam defaultTextAlignment center
+skinparam classFontColor automatic
+
+left to right direction
+
+rectangle ssh-add {
+  agent "keepassXC" as keepass #skyblue
+  agent "<Microsoft>\nssh-add" as mssshadd #skyblue
+  agent "<WSL1>\nssh-add" as wsl1sshadd #gray
+  agent "<WSL2>\nssh-add" as wsl2sshadd #limegreen
+  agent "<cygwin(MSYS2)>\nssh-add" as cygwinsshadd #darkgoldenrod
+}
+
+rectangle ssh-agent {
+  agent "<Microsoft>\nssh-agent" as msagent  #skyblue
+  agent "pageant" as pageant   #skyblue
+  agent "<WSL1>\nssh-agent" as wsl1agent #gray
+  agent "<WSL2>\nssh-agent" as wsl2agent #limegreen
+  agent "<cygwin(MSYS2)>\nssh-agent" as cygwinagent #darkgoldenrod
+}
+
+rectangle Proxy {
+  agent "<WSL1>\nwsl-ssh-agent" as wslsshagent  #skyblue
+  agent "<WSL1>\nwsl-ssh-pageant" as wslsshpageant  #skyblue
+  agent "<WSL2>\nnpiperelay" as npiperelay #limegreen
+  agent "<WSL2>\nwsl2-ssh-pageant" as wsl2sshpageant #limegreen
+  agent "<cygwin(MSYS2)>\nssh-pageant.exe" as cygwinpageant #darkgoldenrod
+  agent "<WSL2>\nsocat" as socat
+}
+
+rectangle Client {
+  agent "<Microsoft>\nOpenSSH\nssh.exe" as msssh #skyblue
+  agent "WinSCP\nFileZilla\nPuTTY" as putty #skyblue
+  agent "<WSL1>\nssh"  as wsl1ssh #gray
+  agent "<WSL2>\nssh"  as wsl2ssh #limegreen
+  agent "<cygwin\n(MSYS2)>\nssh.exe" as cygwinssh #darkgoldenrod
+}
+
+mssshadd --> msagent #line:blue;line.bold;text:blue : "NamedPipe"
+keepass --> msagent #line:blue;line.bold;text:blue : "NamedPipe"
+keepass --> pageant #line:crimson;line.bold;text:crimson : "pagent_shm"
+wsl1sshadd --> wsl1agent  #line:black;line.bold;text:black : "WSL1UnixSocket"
+wsl2sshadd --> wsl2agent  #line:seagreen;line.bold;text:seagreen : "WSL2UnixSOcket"
+cygwinsshadd --> cygwinagent  #line:sienna;line.bold;text:sienna : "cygwinUnixSocket"
+
+msagent --> wslsshagent #line:blue;line.bold;text:blue : "NamedPipe"
+pageant --> wslsshpageant #line:crimson;line.bold;text:crimson : "pageant_shm"
+msagent --> npiperelay #line:blue;line.bold;text:blue : "NamedPipe"
+pageant --> wsl2sshpageant #line:crimson;line.bold;text:crimson : "pageant_shm"
+pageant --> cygwinpageant #line:crimson;line.bold;text:crimson : "pageant_shm"
+msagent --> msssh #line:blue;line.bold;text:blue : "NamedPipe"
+pageant --> putty #line:crimson;line.bold;text:crimson : "pageant_shm"
+wslsshpageant --> msssh  #line:blue;line.bold;text:blue : "NamedPipe"
+wslsshagent --> wsl1ssh #line:black;line.bold;text:black : "WSL1UnixSocket"
+wslsshpageant --> wsl1ssh #line:black;line.bold;text:black : "WSL1UnixSocket"
+wsl1agent --> wsl1ssh #line:black;line.bold;text:black : "WSL1UnixSocket"
+
+npiperelay --> socat #line:seagreen;line.bold;text:seagreen : "WSL2UnixSocket"
+wsl2sshpageant --> socat #line:seagreen;line.bold;text:seagreen : "WSL2UnixSocket"
+socat --> wsl2ssh
+wsl2agent -> wsl2ssh #line:seagreen;line.bold;text:seagreen : "WSL2UnixSocket"
+
+cygwinpageant --> cygwinssh #line:sienna;line.bold;text:sienna : "cygwinUnixSocket"
+cygwinagent --> cygwinssh  #line:sienna;line.bold;text:sienna : "cygwinUnixSocket"
+
+@enduml
+
