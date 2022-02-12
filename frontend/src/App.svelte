@@ -7,6 +7,9 @@
 			greeting = result;
 		});
 	}
+	function exit() {
+        window.go.main.App.Quit();
+	}
 </script>
 
 <main>
@@ -14,6 +17,7 @@
 	<div id="input" data-wails-no-drag>
 		<input id="name" type="text" bind:value={name}>
 		<button class="button" on:click={greet}>Greet</button>
+		<button class="button" on:click={exit}>Exit</button>
 	</div>
 	{#if greeting}
 		<div id="result">{greeting}</div>

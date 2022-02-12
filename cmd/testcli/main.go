@@ -4,6 +4,7 @@ import (
 	"context"
 	"flag"
 	"log"
+	"os"
 
 	"github.com/getlantern/systray"
 	"github.com/kelseyhightower/envconfig"
@@ -12,6 +13,7 @@ import (
 	"github.com/masahide/ssh-agent-win/pkg/npipe2stdin"
 	"github.com/masahide/ssh-agent-win/pkg/pageant"
 	"github.com/masahide/ssh-agent-win/pkg/unix"
+	"github.com/masahide/ssh-agent-win/pkg/wintray"
 
 	"github.com/apenwarr/fixconsole"
 	"golang.org/x/crypto/ssh/agent"
@@ -48,6 +50,10 @@ func main() {
 	if err != nil {
 		log.Fatal(err)
 	}
+
+	wintray.RunTray()
+	os.Exit(0)
+
 	if proxyFlag {
 		proxy(s.PipeName)
 		return
