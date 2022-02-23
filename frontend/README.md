@@ -1,3 +1,17 @@
+
+# build 
+
+```bash
+npm install --save-dev smui-theme
+
+npx smui-theme template src/theme
+
+npm run prepare
+```
+
+
+
+
 *Looking for a shareable component template? Go here --> [sveltejs/component-template](https://github.com/sveltejs/component-template)*
 
 ---

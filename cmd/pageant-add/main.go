@@ -34,8 +34,8 @@ func main() {
 			log.Fatal(err)
 		}
 		fmt.Println("key list:")
-		for _, k := range keys {
-			fmt.Printf(":%v\n", k)
+		for i, k := range keys {
+			fmt.Printf("%d: [%s]\n", i, k.String())
 		}
 		return
 	}

@@ -1,11 +1,22 @@
 {
   "name": "ssh-agent-win",
-  "outputfilename": "ssh-agent-win",
-  "frontend:install": "npm install",
+  "assetdir": "./frontend/dist",
+  "reloaddirs": "./frontend/src/",
   "frontend:build": "npm run build",
-  "wailsjsdir": "./frontend",
-  "author": {
+  "frontend:install": "npm install",
+  "frontend:dev": "npm run build",
+  "wailsjsdir": "./frontend/src",
+  "version": "2",
+  "Path": "",
+  "BuildDir": "",
+  "outputfilename": "ssh-agent-win.exe",
+  "OutputType": "",
+  "Platform": "",
+  "Author": {
     "name": "YAMASAKI Masahide",
     "email": "masahide.y@gmail.com"
-  }
+  },
+  "debounceMS": 100,
+  "devserverurl": "http://localhost:34115",
+  "appargs": ""
 }

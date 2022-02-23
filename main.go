@@ -12,6 +12,10 @@ import (
 	"github.com/wailsapp/wails/v2/pkg/options/windows"
 )
 
+const (
+	AppName = "ssh-agent-win"
+)
+
 //go:embed frontend/dist
 var assets embed.FS
 
@@ -19,12 +23,13 @@ var assets embed.FS
 var icon []byte
 
 func main() {
+	log.SetFlags(log.LstdFlags | log.Lshortfile)
 	// Create an instance of the app structure
 	app := NewApp()
 
 	// Create application with options
 	err := wails.Run(&options.App{
-		Title:             "ssh-agent-win",
+		Title:             AppName,
 		Width:             720,
 		Height:            570,
 		MinWidth:          720,
@@ -35,7 +40,7 @@ func main() {
 		Fullscreen:        false,
 		Frameless:         false,
 		StartHidden:       false,
-		HideWindowOnClose: true,
+		HideWindowOnClose: false,
 		RGBA:              &options.RGBA{R: 33, G: 37, B: 43, A: 255},
 		Assets:            assets,
 		LogLevel:          logger.DEBUG,
@@ -58,7 +63,7 @@ func main() {
 			WindowIsTranslucent:  true,
 			About: &mac.AboutInfo{
 				Title:   "My Application",
-				Message: "© 2021 Me",
+				Message: "",
 				Icon:    icon,
 			},
 		},

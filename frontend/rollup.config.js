@@ -5,6 +5,8 @@ import livereload from 'rollup-plugin-livereload';
 import {terser} from 'rollup-plugin-terser';
 import copy from 'rollup-plugin-copy';
 import postcss from 'rollup-plugin-postcss'
+import autoprefixer from 'autoprefixer';
+
 
 const production = !process.env.ROLLUP_WATCH;
 
@@ -46,6 +48,11 @@ export default {
 		}),
 		postcss({
 			minimize: true,
+            extract: 'bundle.css',
+            sourceMap: true,
+            plugins: [
+                autoprefixer()
+            ]
 		}),
 		// If you have external dependencies installed from
 		// npm, you'll most likely need these plugins. In
@@ -60,8 +67,9 @@ export default {
 		copy({
 			targets: [
 				{src: 'src/index.html', dest: 'dist/'},
-				{src: 'src/global.css', dest: 'dist/'},
+				//{src: 'src/global.css', dest: 'dist/'},
 				{src: 'src/assets', dest: 'dist/'},
+                //{ src: 'src/cssreset.css', dest: 'dist/' },
 			]
 		}),
 
