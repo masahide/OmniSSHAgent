@@ -5,6 +5,7 @@ import (
 	"crypto/rand"
 	"crypto/rsa"
 	"crypto/sha256"
+	"encoding/base64"
 	"encoding/hex"
 	"errors"
 	"fmt"
@@ -12,67 +13,148 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/kayrus/putty"
+	"github.com/masahide/ssh-agent-win/pkg/sshkey"
 	"github.com/masahide/ssh-agent-win/pkg/store"
 	"golang.org/x/crypto/ssh"
 	"golang.org/x/crypto/ssh/agent"
 )
 
-type PrivateKeyFile struct {
-	FilePath   string `json:"filePath"`
-	Type       string `json:"type"`
-	Algo       string `json:"algo"`
-	Encryption bool   `json:"encryption"`
-	Passphrase string `json:"passphrase"`
+func publicKeyString(k ssh.PublicKey, comment string) string {
+	s := k.Type() + " " + base64.StdEncoding.EncodeToString(k.Marshal())
+	return s + map[bool]string{true: " " + comment, false: ""}[len(comment) > 0]
+
 }
 
+// KeyRing saves the state of ssh-agent
 type KeyRing struct {
 	agent.Agent
 	settings *store.Settings
 }
 
-func (k *KeyRing) AddKeySettings(key PrivateKeyFile) error {
+// AddKeySettings saves PrivateKeyFile informatio in the store
+func (k *KeyRing) AddKeySettings(key sshkey.PrivateKeyFile) (string, error) {
 	id, err := uuid.NewUUID()
 	if err != nil {
-		return err
+		return "", err
 	}
-	data := store.KeyInfo{
+	data := sshkey.PrivateKeyFile{
 		ID:         id.String(),
-		Type:       key.Type,
+		FileType:   key.FileType,
 		Encryption: key.Encryption,
 		FilePath:   key.FilePath,
+		PublicKey:  key.PublicKey,
 	}
 	k.settings.Keys = append(k.settings.Keys, data)
 	err = k.settings.SecretStore.Set(id.String(), key.Passphrase)
 	if err != nil {
-		return err
+		return "", err
 	}
 	err = k.settings.Save()
 	if err != nil {
-		return err
+		return "", err
+	}
+	return id.String(), nil
+}
+
+// DeleteKeySettings Delete PrivateKeyFile informatio in the store
+func (k *KeyRing) DeleteKeySettings(sha256 string) error {
+	id := ""
+	newKeys := make([]sshkey.PrivateKeyFile, 0, len(k.settings.Keys)-1)
+	for i := range k.settings.Keys {
+		if k.settings.Keys[i].PublicKey.SHA256 == sha256 {
+			id = k.settings.Keys[i].ID
+			continue
+		}
+		newKeys = append(newKeys, k.settings.Keys[i])
+	}
+	k.settings.Keys = newKeys
+	if len(id) == 0 {
+		return nil
+	}
+	k.settings.SecretStore.Remove(id)
+	err := k.settings.Save()
+	return err
+}
+
+func (k *KeyRing) getKey(keyID string) (sshkey.PrivateKeyFile, error) {
+	for _, key := range k.settings.Keys {
+		if key.ID == keyID {
+			return key, nil
+		}
+	}
+	return sshkey.PrivateKeyFile{}, fmt.Errorf("Not found key ID:%s", keyID)
+}
+
+func (k *KeyRing) AddKeys() error {
+	for _, key := range k.settings.Keys {
+		if err := k.AddKey(key.ID); err != nil {
+			return err
+		}
 	}
 	return nil
 }
 
-func (k *KeyRing) AddKey(key PrivateKeyFile) error {
-	return nil
+// AddKey loads PrivateKeyFile into ssh-agent
+func (k *KeyRing) AddKey(keyID string) error {
+	pkf, err := k.getKey(keyID)
+	if err != nil {
+		return err
+	}
+	agentKeys, err := k.listPublickeys()
+	if err != nil {
+		return err
+	}
+	for _, agentKey := range agentKeys {
+		if pkf.PublicKey.SHA256 == agentKey.SHA256 {
+			return nil
+		}
+	}
+	pf, err := k.settings.SecretStore.Get(keyID)
+	if err != nil {
+		return err
+	}
+	_, addkey, err := LoadKeyfile(pkf.FilePath, pf)
+	if err != nil {
+		return err
+	}
+	return k.Add(*addkey)
 }
 
-func LoadKeyfile(filePath string, passPhrase string) (*PrivateKeyFile, *agent.AddedKey, error) {
+func getkeyInfo(s ssh.Signer, comment string) sshkey.PublicKey {
+	pubkey := s.PublicKey()
+	return sshkey.PublicKey{
+		MD5:     ssh.FingerprintLegacyMD5(pubkey),
+		SHA256:  ssh.FingerprintSHA256(pubkey),
+		Type:    pubkey.Type(),
+		Comment: comment,
+		String:  publicKeyString(s.PublicKey(), comment),
+	}
+}
+
+// LoadKeyfile Read privateKey file from local filesystem
+func LoadKeyfile(filePath string, passPhrase string) (*sshkey.PrivateKeyFile, *agent.AddedKey, error) {
 	puttyKey, err := putty.NewFromFile(filePath)
 	if err == nil {
-		kt := "ppk"
+		fileType := "ppk"
 		algo := puttyKey.Algo
-		pf := map[bool][]byte{
-			true:  nil,
-			false: []byte(passPhrase),
-		}[len(passPhrase) == 0]
-		pk, err := puttyKey.ParseRawPrivateKey(pf)
+		if len(passPhrase) == 0 && puttyKey.Encryption != "none" {
+			return &sshkey.PrivateKeyFile{FilePath: filePath, FileType: fileType,
+				PublicKey:  sshkey.PublicKey{Type: algo},
+				Encryption: puttyKey.Encryption != "none"}, nil, nil
+		}
+		pk, err := puttyKey.ParseRawPrivateKey([]byte(passPhrase))
 		if err != nil {
 			return nil, nil, errors.New("faild decrypto")
 		}
+		signer, err := ssh.NewSignerFromKey(pk)
+		if err != nil {
+			return nil, nil, err
+		}
+		pkinfo := getkeyInfo(signer, puttyKey.Comment)
 		addkey := &agent.AddedKey{PrivateKey: pk, Comment: puttyKey.Comment}
-		return &PrivateKeyFile{FilePath: filePath, Type: kt,
-			Algo: algo, Encryption: puttyKey.Encryption != "none"}, addkey, nil
+		return &sshkey.PrivateKeyFile{FilePath: filePath, FileType: fileType,
+			PublicKey:  pkinfo,
+			Encryption: puttyKey.Encryption != "none"}, addkey, nil
 
 	}
 	pemBytes, err := os.ReadFile(filePath)
@@ -80,21 +162,22 @@ func LoadKeyfile(filePath string, passPhrase string) (*PrivateKeyFile, *agent.Ad
 		return nil, nil, err
 	}
 	if len(passPhrase) == 0 {
-		kt := "OpenSSH"
+		fileType := "OpenSSH"
 		key, err := ssh.ParseRawPrivateKey(pemBytes)
 		if err == nil {
 			signer, err := ssh.NewSignerFromKey(key)
-			if err == nil {
-				return nil, nil, fmt.Errorf("NewSignerFromKey err:%w", err)
+			if err != nil {
+				return nil, nil, err
 			}
 			addkey := &agent.AddedKey{PrivateKey: key}
-			algo := signer.PublicKey().Type()
-			return &PrivateKeyFile{FilePath: filePath, Type: kt,
-				Algo: algo, Encryption: false}, addkey, nil
+			pkinfo := getkeyInfo(signer, "")
+			return &sshkey.PrivateKeyFile{FilePath: filePath, FileType: fileType,
+				PublicKey:  pkinfo,
+				Encryption: false}, addkey, nil
 		}
 		switch err.(type) {
 		case *ssh.PassphraseMissingError:
-			return &PrivateKeyFile{FilePath: filePath, Type: kt, Algo: "", Encryption: true}, nil, nil
+			return &sshkey.PrivateKeyFile{FilePath: filePath, FileType: fileType, Encryption: true}, nil, nil
 		default:
 			return nil, nil, err
 		}
@@ -104,67 +187,23 @@ func LoadKeyfile(filePath string, passPhrase string) (*PrivateKeyFile, *agent.Ad
 	if err != nil {
 		return nil, nil, err
 	}
-	kt := "OpenSSH"
+	fileType := "OpenSSH"
 	signer, err := ssh.NewSignerFromKey(key)
-	if err == nil {
-		return nil, nil, fmt.Errorf("NewSignerFromKey err:%w", err)
+	if err != nil {
+		return nil, nil, err
 	}
-	algo := signer.PublicKey().Type()
 	addkey := &agent.AddedKey{PrivateKey: key}
-	return &PrivateKeyFile{FilePath: filePath, Type: kt, Algo: algo, Encryption: false}, addkey, nil
+	pkinfo := getkeyInfo(signer, "")
+	return &sshkey.PrivateKeyFile{FilePath: filePath, FileType: fileType, PublicKey: pkinfo, Encryption: true}, addkey, nil
 }
 
-func CheckKeyType(filePath string, passPhrase string) (*PrivateKeyFile, error) {
-	puttyKey, err := putty.NewFromFile(filePath)
-	if err == nil {
-		kt := "ppk"
-		algo := puttyKey.Algo
-		if len(passPhrase) == 0 {
-			return &PrivateKeyFile{FilePath: filePath, Type: kt, Algo: algo, Encryption: puttyKey.Encryption != "none"}, nil
-		}
-		_, err := puttyKey.ParseRawPrivateKey([]byte(passPhrase))
-		if err != nil {
-			return nil, errors.New("faild decrypto")
-		}
-		return &PrivateKeyFile{FilePath: filePath, Type: kt, Algo: algo, Encryption: true}, nil
-
-	}
-	pemBytes, err := os.ReadFile(filePath)
-	if err != nil {
-		return nil, err
-	}
-	if len(passPhrase) == 0 {
-		signer, err := ssh.ParsePrivateKey(pemBytes)
-		kt := "OpenSSH"
-		if err == nil {
-			algo := signer.PublicKey().Type()
-			return &PrivateKeyFile{FilePath: filePath, Type: kt, Algo: algo, Encryption: false}, nil
-		}
-		switch err.(type) {
-		case *ssh.PassphraseMissingError:
-			return &PrivateKeyFile{FilePath: filePath, Type: kt, Algo: "", Encryption: true}, nil
-		default:
-			return nil, err
-		}
-	}
-
-	signer, err := ssh.ParsePrivateKeyWithPassphrase(pemBytes, []byte(passPhrase))
-	if err != nil {
-		return nil, err
-	}
-	kt := "OpenSSH"
-	algo := signer.PublicKey().Type()
-	return &PrivateKeyFile{FilePath: filePath, Type: kt, Algo: algo, Encryption: true}, nil
+// CheckKeyType Check the information in the PrivateKey file
+func CheckKeyType(filePath string, passPhrase string) (*sshkey.PrivateKeyFile, error) {
+	pf, _, err := LoadKeyfile(filePath, passPhrase)
+	return pf, err
 }
 
-type Key struct {
-	MD5       string
-	SHA256    string
-	Type      string
-	Comment   string
-	PublicKey string
-}
-
+// NewKeyRing an Agent that holds keys in memory.
 func NewKeyRing(s *store.Settings) *KeyRing {
 	k := &KeyRing{settings: s}
 	k.Agent = agent.NewKeyring()
@@ -180,20 +219,82 @@ func fpSHA256(blob []byte) string {
 	return hex.EncodeToString(fp[:])
 }
 
-func (k *KeyRing) KeyList() ([]Key, error) {
+func (k *KeyRing) listPublickeys() ([]sshkey.PublicKey, error) {
 	list, err := k.List()
 	if err != nil {
 		return nil, err
 	}
-	res := make([]Key, len(list))
+	res := make([]sshkey.PublicKey, len(list))
 	for i, k := range list {
 		res[i].Comment = k.Comment
 		res[i].Type = k.Type()
 		res[i].MD5 = ssh.FingerprintLegacyMD5(k)
 		res[i].SHA256 = ssh.FingerprintSHA256(k)
-		res[i].PublicKey = k.String()
+		res[i].String = k.String()
 	}
 	return res, nil
+}
+
+func (k *KeyRing) RemoveKey(sha256 string) error {
+	list, err := k.List()
+	if err != nil {
+		return err
+	}
+	for _, key := range list {
+		if ssh.FingerprintSHA256(key) == sha256 {
+			pubkey, err := ssh.ParsePublicKey(key.Marshal())
+			if err != nil {
+				return err
+			}
+			return k.Remove(pubkey)
+		}
+	}
+	return nil
+}
+
+// KeyList wails function to display the key list with
+func (k *KeyRing) KeyList() ([]sshkey.PrivateKeyFile, error) {
+	agentKeys, err := k.listPublickeys()
+	if err != nil {
+		return nil, err
+	}
+	return k.mergeKeyList(agentKeys)
+}
+
+// KeyList wails function to display the key list with
+func (k *KeyRing) mergeKeyList(agentKeys []sshkey.PublicKey) ([]sshkey.PrivateKeyFile, error) {
+	res := make([]sshkey.PrivateKeyFile, 0, len(agentKeys)+len(k.settings.Keys))
+	for i := range agentKeys {
+		key := getKey(k.settings.Keys, agentKeys[i])
+		if key == nil {
+			res = append(res, sshkey.PrivateKeyFile{PublicKey: agentKeys[i]})
+			continue
+		}
+		res = append(res, *key)
+	}
+	for i := range k.settings.Keys {
+		if !hasKey(agentKeys, k.settings.Keys[i]) {
+			res = append(res, k.settings.Keys[i])
+		}
+	}
+	return res, nil
+}
+
+func getKey(pkfiles []sshkey.PrivateKeyFile, pubkey sshkey.PublicKey) *sshkey.PrivateKeyFile {
+	for i := range pkfiles {
+		if pkfiles[i].PublicKey.SHA256 == pubkey.SHA256 {
+			return &pkfiles[i]
+		}
+	}
+	return nil
+}
+func hasKey(pubkeys []sshkey.PublicKey, pkfile sshkey.PrivateKeyFile) bool {
+	for _, pubkey := range pubkeys {
+		if pubkey.SHA256 == pkfile.PublicKey.SHA256 {
+			return true
+		}
+	}
+	return false
 }
 
 func generatePrivateKey(bitSize int) (*rsa.PrivateKey, error) {
@@ -209,25 +310,3 @@ func generatePrivateKey(bitSize int) (*rsa.PrivateKey, error) {
 	}
 	return privateKey, nil
 }
-
-/*
-func (a *App) KeyList() ([]Key, error) {
-	rsa, err := generatePrivateKey(4096)
-	if err != nil {
-		return nil, err
-	}
-	keyring := agent.NewKeyring()
-	keyring.Add(agent.AddedKey{PrivateKey: rsa})
-	list, err := keyring.List()
-	if err != nil {
-		return nil, err
-	}
-	res := make([]Key, len(list))
-	for i := range list {
-		res[i].Key = list[i]
-		res[i].MD5 = fpMD5(list[i].Blob)
-		res[i].SHA256 = fpSHA256(list[i].Blob)
-	}
-	return res, nil
-}
-*/

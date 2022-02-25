@@ -15,6 +15,7 @@
     let addButton = false;
 
     const red = {
+        duration: 7000, // duration of progress bar tween to the `next` value
         theme: {
             "--toastBackground": "#F56565",
             "--toastBarBackground": "#C53030",
@@ -27,30 +28,33 @@
         },
     };
 
-    const newData = () => {
+    const newPkfile = () => {
         return {
             filePath: "",
             type: "",
             encryption: false,
             passphrase: "",
+            publickey: {
+                type: "",
+            },
         };
     };
-    let data = newData();
+    let pkFile = newPkfile();
 
-    $: keytype = data.type + ":" + data.algo
+    $: keytype = pkFile.fileType + ":" + pkFile.publickey.type
 
     const dispatch = createEventDispatcher();
     function add() {
-        dispatch("data", { data: data });
+        dispatch("eventAddPkfile", pkFile );
         open = false;
         addButton = false;
-        data = newData();
+        pkFile = newPkfile();
     }
     const openFile = async () => {
         await window.go.main.App.OpenFile()
             .then((file) => {
-                data.filePath = file;
-                data.passphrase = "";
+                pkFile.filePath = file;
+                pkFile.passphrase = "";
                 checkKeyType();
             })
             .catch((err) => {
@@ -60,17 +64,17 @@
             });
     };
     const checkKeyType = async () => {
-        await window.go.main.App.CheckKeyType(data.filePath, data.passphrase)
+        await window.go.main.App.CheckKeyType(pkFile.filePath, pkFile.passphrase)
             .then((file) => {
-                let pass = data.passphrase;
-                data = { ...file };
-                data.passphrase = pass;
-                console.debug(data);
+                let pass = pkFile.passphrase;
+                pkFile = { ...file };
+                pkFile.passphrase = pass;
+                console.debug(pkFile);
                 addButton = true;
-                if (data.encryption && data.passphrase.length > 0) {
+                if (pkFile.encryption && pkFile.passphrase.length > 0) {
                     toast.push("Successful decryption", green);
                 }
-                if (data.encryption && data.passphrase.length == 0) {
+                if (pkFile.encryption && pkFile.passphrase.length == 0) {
                     addButton = false;
                 }
             })
@@ -99,7 +103,7 @@
                         <FormField style="width: 100%;">
                             <Textfield
                                 disabled
-                                value={data.filePath}
+                                value={pkFile.filePath}
                                 label="Private key file"
                                 style="width: 100%;"
                                 helperLine$style="width: 100%;"
@@ -129,21 +133,21 @@
                     <div>
                         <FormField>
                             <Switch
-                                bind:checked={data.encryption}
+                                bind:checked={pkFile.encryption}
                                 disabled
                                 value="Encryption?"
                             />
                             <span
-                                >{data.encryption
+                                >{pkFile.encryption
                                     ? "Encrypt with passphrase"
                                     : "Not encrypted"}</span
                             >
                         </FormField>
                     </div>
-                    {#if data.encryption}
+                    {#if pkFile.encryption}
                         <FormField style="width: 100%;">
                             <Textfield
-                                bind:value={data.passphrase}
+                                bind:value={pkFile.passphrase}
                                 type="password"
                                 label="passphrase"
                                 style="width: 100%;"

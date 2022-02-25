@@ -2,12 +2,14 @@ package main
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
 
 	"github.com/masahide/ssh-agent-win/pkg/namedpipe"
 	"github.com/masahide/ssh-agent-win/pkg/pageant"
+	"github.com/masahide/ssh-agent-win/pkg/sshkey"
 	"github.com/masahide/ssh-agent-win/pkg/sshutil"
 	"github.com/masahide/ssh-agent-win/pkg/store"
 	"github.com/masahide/ssh-agent-win/pkg/store/local"
@@ -42,12 +44,15 @@ func (a *App) startup(ctx context.Context) {
 	a.ti.TrayClickFunc = a.showWindow
 	go a.ti.RunTray()
 	a.settings = store.NewSettings(getExeName(), local.NewLocalCred(AppName))
-	err := a.settings.Load()
-	if err != nil {
+	if err := a.settings.Load(); err != nil {
 		runtime.LogFatal(ctx, err.Error())
 	}
+
 	debug := false
 	a.keyRing = sshutil.NewKeyRing(a.settings)
+	if err := a.keyRing.AddKeys(); err != nil {
+		runtime.LogFatal(ctx, err.Error())
+	}
 	pa := &pageant.Pageant{Agent: a.keyRing, Debug: debug}
 	go pa.RunAgent()
 	runtime.LogInfo(ctx, "Start pageant...")
@@ -96,14 +101,40 @@ func (a *App) Quit() {
 	runtime.Quit(a.ctx)
 }
 
-func (a *App) AddKey(pk sshutil.PrivateKeyFile) error {
+func (a *App) AddKey(pk sshkey.PrivateKeyFile) error {
+	id, err := a.keyRing.AddKeySettings(pk)
+	if err != nil {
+		return err
+	}
+	if err := a.keyRing.AddKey(id); err != nil {
+		return err
+	}
 	return nil
 }
 
-func (a *App) KeyList() ([]sshutil.Key, error) {
+func (a *App) DeleteKey(sha256 string) error {
+	c, err := runtime.MessageDialog(a.ctx, runtime.MessageDialogOptions{
+		Type:    runtime.QuestionDialog,
+		Title:   "Delete?",
+		Message: "Do you really want to delete this?",
+	})
+	if err != nil {
+		return err
+	}
+	runtime.LogDebug(a.ctx, c)
+	if c != "Yes" {
+		return errors.New("cancel")
+	}
+	if err := a.keyRing.RemoveKey(sha256); err != nil {
+		return err
+	}
+	return a.keyRing.DeleteKeySettings(sha256)
+}
+
+func (a *App) KeyList() ([]sshkey.PrivateKeyFile, error) {
 	return a.keyRing.KeyList()
 }
 
-func (a *App) CheckKeyType(filePath, passphrase string) (*sshutil.PrivateKeyFile, error) {
+func (a *App) CheckKeyType(filePath, passphrase string) (*sshkey.PrivateKeyFile, error) {
 	return sshutil.CheckKeyType(filePath, passphrase)
 }

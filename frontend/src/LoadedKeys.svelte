@@ -3,7 +3,7 @@
     import Button, { Label } from "@smui/button";
     import List, { Item, Text, PrimaryText, SecondaryText } from "@smui/list";
     import { toast } from '@zerodevx/svelte-toast'
-
+/*
     let keys = [];
     const loadKeys = async () => {
         await window.go.main.App.KeyList()
@@ -21,20 +21,10 @@
             });
     };
     loadKeys();
+*/
 </script>
 
 <div>
-    <List threeLine nonInteractive>
-        {#each keys as key, i}
-            <Item>
-                <Text>
-                    <PrimaryText>{key.SHA256}</PrimaryText>
-                    <SecondaryText>MD5 {key.MD5}</SecondaryText>
-                    <SecondaryText>({key.Type}) Comment:{key.Comment}</SecondaryText>
-                </Text>
-            </Item>
-        {/each}
-    </List>
 </div>
 
 <style>

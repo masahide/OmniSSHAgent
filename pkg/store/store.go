@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+
+	"github.com/masahide/ssh-agent-win/pkg/sshkey"
 )
 
 const (
@@ -17,15 +19,8 @@ type Store interface {
 	Remove(key string) error
 }
 
-type KeyInfo struct {
-	ID         string `json:"id"`
-	Type       string `json:"type"`
-	Encryption bool   `json:"encryption"`
-	FilePath   string `json:"filePath"`
-}
-
 type SaveData struct {
-	Keys             []KeyInfo
+	Keys             []sshkey.PrivateKeyFile
 	PageantAgent     bool
 	NamedPipeAgent   bool
 	UnixSocketAgent  bool
@@ -42,7 +37,7 @@ type Settings struct {
 
 func initSetting() SaveData {
 	return SaveData{
-		Keys:            []KeyInfo{},
+		Keys:            []sshkey.PrivateKeyFile{},
 		PageantAgent:    true,
 		NamedPipeAgent:  true,
 		UnixSocketAgent: true,

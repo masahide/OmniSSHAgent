@@ -8,6 +8,7 @@ require (
 	github.com/cwchiu/go-winapi v0.0.0-20130629162214-19f502a3f526
 	github.com/davidmz/go-pageant v1.0.2
 	github.com/getlantern/systray v1.1.0
+	github.com/google/go-cmp v0.5.7
 	github.com/google/uuid v1.1.2
 	github.com/kayrus/putty v1.0.4
 	github.com/kelseyhightower/envconfig v1.4.0
