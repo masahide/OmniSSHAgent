@@ -22,7 +22,7 @@ const (
 )
 
 type Pageant struct {
-	agent.Agent
+	agent.ExtendedAgent
 	Debug bool
 }
 

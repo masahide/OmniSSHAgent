@@ -27,7 +27,7 @@ func publicKeyString(k ssh.PublicKey, comment string) string {
 
 // KeyRing saves the state of ssh-agent
 type KeyRing struct {
-	agent.Agent
+	agent.ExtendedAgent
 	settings *store.Settings
 }
 
@@ -206,8 +206,12 @@ func CheckKeyType(filePath string, passPhrase string) (*sshkey.PrivateKeyFile, e
 // NewKeyRing an Agent that holds keys in memory.
 func NewKeyRing(s *store.Settings) *KeyRing {
 	k := &KeyRing{settings: s}
-	k.Agent = agent.NewKeyring()
-	return k
+	a := agent.NewKeyring()
+	if extendedAgent, ok := a.(agent.ExtendedAgent); ok {
+		k.ExtendedAgent = extendedAgent
+		return k
+	}
+	return nil
 }
 
 func fpMD5(blob []byte) string {

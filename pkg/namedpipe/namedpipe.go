@@ -11,7 +11,7 @@ import (
 )
 
 type NamedPipe struct {
-	agent.Agent
+	agent.ExtendedAgent
 	Debug bool
 	Name  string
 }

@@ -53,12 +53,12 @@ func (a *App) startup(ctx context.Context) {
 	if err := a.keyRing.AddKeys(); err != nil {
 		runtime.LogFatal(ctx, err.Error())
 	}
-	pa := &pageant.Pageant{Agent: a.keyRing, Debug: debug}
+	pa := &pageant.Pageant{ExtendedAgent: a.keyRing, Debug: debug}
 	go pa.RunAgent()
 	runtime.LogInfo(ctx, "Start pageant...")
 	if a.settings.NamedPipeAgent {
 		pipeName := ""
-		na := &namedpipe.NamedPipe{Agent: a.keyRing, Debug: debug, Name: pipeName}
+		na := &namedpipe.NamedPipe{ExtendedAgent: a.keyRing, Debug: debug, Name: pipeName}
 		runtime.LogInfo(ctx, "Start NamedPipe agent..")
 		go na.RunAgent()
 	}
