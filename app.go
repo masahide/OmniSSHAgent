@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"os"
 	"path/filepath"
 
 	"github.com/masahide/ssh-agent-win/pkg/namedpipe"
@@ -12,7 +11,6 @@ import (
 	"github.com/masahide/ssh-agent-win/pkg/sshkey"
 	"github.com/masahide/ssh-agent-win/pkg/sshutil"
 	"github.com/masahide/ssh-agent-win/pkg/store"
-	"github.com/masahide/ssh-agent-win/pkg/store/local"
 	"github.com/masahide/ssh-agent-win/pkg/unix"
 	"github.com/masahide/ssh-agent-win/pkg/wintray"
 	"github.com/wailsapp/wails/v2/pkg/runtime"
@@ -31,10 +29,6 @@ func NewApp() *App {
 	return &App{}
 }
 
-func getExeName() string {
-	return filepath.Base(os.Args[0])
-}
-
 // startup is called at application startup
 func (a *App) startup(ctx context.Context) {
 	// Perform your setup here
@@ -43,18 +37,17 @@ func (a *App) startup(ctx context.Context) {
 	a.ti.BalloonClickFunc = a.showWindow
 	a.ti.TrayClickFunc = a.showWindow
 	go a.ti.RunTray()
-	a.settings = store.NewSettings(getExeName(), local.NewLocalCred(AppName))
-	if err := a.settings.Load(); err != nil {
-		runtime.LogFatal(ctx, err.Error())
-	}
 
 	debug := false
 	a.keyRing = sshutil.NewKeyRing(a.settings)
 	if err := a.keyRing.AddKeys(); err != nil {
 		runtime.LogFatal(ctx, err.Error())
 	}
+	a.keyRing.NotifyCallback = a.notice
 	pa := &pageant.Pageant{ExtendedAgent: a.keyRing, Debug: debug}
-	go pa.RunAgent()
+	if a.settings.PageantAgent {
+		go pa.RunAgent()
+	}
 	runtime.LogInfo(ctx, "Start pageant...")
 	if a.settings.NamedPipeAgent {
 		pipeName := ""
@@ -66,6 +59,13 @@ func (a *App) startup(ctx context.Context) {
 		ua := &unix.DomainSock{Agent: a.keyRing, Debug: debug, Path: a.settings.UnixSocketPath}
 		go ua.RunAgent()
 		runtime.LogInfo(ctx, "Start Unix domain socket agent..")
+	}
+}
+
+func (a *App) notice(action string, data interface{}) {
+	switch action {
+	case "Add":
+		runtime.EventsEmit(a.ctx, action)
 	}
 }
 
@@ -101,7 +101,10 @@ func (a *App) Quit() {
 	runtime.Quit(a.ctx)
 }
 
-func (a *App) AddKey(pk sshkey.PrivateKeyFile) error {
+func (a *App) AddLocalFile(pk sshkey.PrivateKeyFile) error {
+	pk.Name = filepath.Base(pk.FilePath)
+	pk.StoreType = sshutil.LocalStore
+	//log.Printf("AddLocalFile:%s", sshutil.JSONDump(pk))
 	id, err := a.keyRing.AddKeySettings(pk)
 	if err != nil {
 		return err
@@ -137,4 +140,18 @@ func (a *App) KeyList() ([]sshkey.PrivateKeyFile, error) {
 
 func (a *App) CheckKeyType(filePath, passphrase string) (*sshkey.PrivateKeyFile, error) {
 	return sshutil.CheckKeyType(filePath, passphrase)
+}
+
+func (a *App) GetSettings() store.SaveData {
+	return a.settings.SaveData
+}
+func (a *App) Save(s store.SaveData) error {
+	a.settings.SaveData.StartHidden = s.StartHidden
+	a.settings.SaveData.PageantAgent = s.PageantAgent
+	a.settings.SaveData.NamedPipeAgent = s.NamedPipeAgent
+	a.settings.SaveData.UnixSocketAgent = s.UnixSocketAgent
+	a.settings.SaveData.CygWinAgent = s.CygWinAgent
+	a.settings.SaveData.UnixSocketPath = s.UnixSocketPath
+	a.settings.SaveData.CygWinSocketPath = s.CygWinSocketPath
+	return a.settings.Save()
 }

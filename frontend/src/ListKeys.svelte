@@ -21,9 +21,16 @@
         },
     };
 
+    const onAddEvent = (message) => {
+        loadKeys();
+        console.log(message);
+    };
+
+    window.runtime.EventsOn("Add", onAddEvent);
+
     function handleData(event) {
-        window.runtime.LogDebug(JSON.stringify(event.detail));
-        addkey(event.detail);
+        //window.runtime.LogDebug(JSON.stringify(event.detail));
+        addlocalFile(event.detail);
     }
     const delKey = async (sha256) => {
         await window.go.main.App.DeleteKey(sha256)
@@ -32,15 +39,15 @@
                 loadKeys();
             })
             .catch((err) => {
-                if (err=="cancel") {
-                    return
+                if (err == "cancel") {
+                    return;
                 }
                 console.error("delete key err:" + err);
                 toast.push(err, red);
             });
     };
-    const addkey = async (privateKeyFile) => {
-        await window.go.main.App.AddKey(privateKeyFile)
+    const addlocalFile = async (privateKeyFile) => {
+        await window.go.main.App.AddLocalFile(privateKeyFile)
             .then(() => {
                 toast.push("Successful add key", green);
                 loadKeys();
@@ -61,6 +68,13 @@
                 toast.push(err, red);
             });
     };
+    function getKeyTitle(key) {
+        if (key.storeType == "") {
+            return "---";
+        }
+        //return key.name;
+        return key.name;
+    }
     loadKeys();
 </script>
 
@@ -69,8 +83,9 @@
         {#each keys as key, i}
             <Panel>
                 <Header
-                    >{key.filePath.replace(/^.*[\\\/]/, "")}<span
-                        slot="description">{key.publickey.sha256}</span
+                    >{getKeyTitle(key)}<span
+                        slot="description"
+                        ><div class="sha256">{key.publickey.sha256}</div></span
                     ></Header
                 >
                 <Content
@@ -95,10 +110,12 @@
                         value={key.publickey.md5}
                     /><br />
                     SSH Public key:
-                    <Paper variant="outlined"
+                    <Paper variant="outlined" class="publickey"
                         ><Content>{key.publickey.string}</Content></Paper
                     >
-                    <Button variant="outlined" on:click={delKey(key.publickey.sha256)} 
+                    <Button
+                        variant="outlined"
+                        on:click={delKey(key.publickey.sha256)}
                         ><Icon class="material-icons">delete</Icon><Label
                             >Delete</Label
                         ></Button

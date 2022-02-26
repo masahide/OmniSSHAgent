@@ -21,6 +21,7 @@ type Store interface {
 
 type SaveData struct {
 	Keys             []sshkey.PrivateKeyFile
+	StartHidden      bool
 	PageantAgent     bool
 	NamedPipeAgent   bool
 	UnixSocketAgent  bool

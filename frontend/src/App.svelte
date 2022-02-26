@@ -2,7 +2,12 @@
     import ListKeys from "./ListKeys.svelte";
     import Settings from "./Settings.svelte";
     import { SvelteToast } from "@zerodevx/svelte-toast";
-    import IconButton from "@smui/icon-button";
+    import IconButton, { Icon } from "@smui/icon-button";
+    import { mdiGithub } from "@mdi/js";
+    import { Svg } from "@smui/common/elements";
+    import Menu from "@smui/menu";
+    import List, { Item, Separator, Text } from "@smui/list";
+    import Button, { Label } from "@smui/button";
 
     function exit() {
         window.go.main.App.Quit();
@@ -11,32 +16,51 @@
         duration: 4000, // duration of progress bar tween to the `next` value
         initial: 1, // initial progress bar value
         next: 0, // next progress value
-        pausable: false, // pause progress bar tween on mouse hover
+        pausable: true, // pause progress bar tween on mouse hover
         dismissable: true, // allow dismiss with close button
         reversed: false, // insert new toast to bottom of stack
         intro: { x: 256 }, // toast intro fly animation settings
         theme: {}, // css var overrides
         classes: [], // user-defined classes
     };
+    let menu;
+    let clicked = "nothing yet";
 </script>
 
 <main>
-    <div class="bar-container">
-        <div class="top-bar-row">
-            <section class="top-app-bar_section-align-start">
-                <IconButton class="material-icons">menu</IconButton>
-                <span class="mdc-top-app-bar__title">SSH key agent</span>
-            </section>
-            <section class="top-app-bar_section-align-end">
-                <IconButton class="material-icons">build</IconButton>
-            </section>
+    <div id="input" data-wails-no-drag>
+        <div class="list">
+            <div class="bar-container">
+                <div class="top-bar-row">
+                    <section class="top-app-bar_section-align-start">
+                        <IconButton
+                            on:click={() => menu.setOpen(true)}
+                            class="material-icons">menu</IconButton
+                        >
+                        <span class="mdc-top-app-bar__title">SSH key agent</span
+                        >
+                    </section>
+                    <section class="top-app-bar_section-align-end">
+                        <IconButton>
+                            <Icon component={Svg} viewBox="0 0 24 24">
+                                <path fill="currentColor" d={mdiGithub} />
+                            </Icon>
+                        </IconButton>
+                        <Settings />
+                    </section>
+                </div>
+            </div>
+            <ListKeys />
         </div>
+        <SvelteToast {toastOptions} />
+        <Menu bind:this={menu}>
+            <List>
+                <Item> <Text>Cancel</Text> </Item>
+                <Separator />
+                <Item on:SMUI:action={exit}> <Text>Exit</Text> </Item>
+            </List>
+        </Menu>
     </div>
-
-    <div class="list">
-        <ListKeys />
-    </div>
-    <SvelteToast {toastOptions} />
 </main>
 
 <style>

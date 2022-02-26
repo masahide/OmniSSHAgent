@@ -3,7 +3,11 @@ package main
 import (
 	"embed"
 	"log"
+	"os"
+	"path/filepath"
 
+	"github.com/masahide/ssh-agent-win/pkg/store"
+	"github.com/masahide/ssh-agent-win/pkg/store/local"
 	"github.com/wailsapp/wails/v2/pkg/options/mac"
 
 	"github.com/wailsapp/wails/v2"
@@ -22,10 +26,18 @@ var assets embed.FS
 //go:embed build/appicon.png
 var icon []byte
 
+func getExeName() string {
+	return filepath.Base(os.Args[0])
+}
+
 func main() {
 	log.SetFlags(log.LstdFlags | log.Lshortfile)
 	// Create an instance of the app structure
 	app := NewApp()
+	app.settings = store.NewSettings(getExeName(), local.NewLocalCred(AppName))
+	if err := app.settings.Load(); err != nil {
+		log.Fatal(err.Error())
+	}
 
 	// Create application with options
 	err := wails.Run(&options.App{
@@ -39,7 +51,7 @@ func main() {
 		DisableResize:     false,
 		Fullscreen:        false,
 		Frameless:         false,
-		StartHidden:       true,
+		StartHidden:       app.settings.StartHidden,
 		HideWindowOnClose: true,
 		RGBA:              &options.RGBA{R: 33, G: 37, B: 43, A: 255},
 		Assets:            assets,

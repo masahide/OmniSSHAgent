@@ -12,8 +12,10 @@ type KeyInfo struct {
 // PrivateKeyFile Private key file information interface with wails.
 type PrivateKeyFile struct {
 	ID         string    `json:"id"`
+	Name       string    `json:"name"`
 	FilePath   string    `json:"filePath"`
 	FileType   string    `json:"fileType"`
+	StoreType  string    `json:"storeType"`
 	Encryption bool      `json:"encryption"`
 	Passphrase string    `json:"passphrase"`
 	PublicKey  PublicKey `json:"publickey"`

@@ -7,8 +7,10 @@ import (
 	"crypto/sha256"
 	"encoding/base64"
 	"encoding/hex"
+	"encoding/json"
 	"errors"
 	"fmt"
+	"log"
 	"os"
 
 	"github.com/google/uuid"
@@ -19,6 +21,10 @@ import (
 	"golang.org/x/crypto/ssh/agent"
 )
 
+const (
+	LocalStore = "LocalStore"
+)
+
 func publicKeyString(k ssh.PublicKey, comment string) string {
 	s := k.Type() + " " + base64.StdEncoding.EncodeToString(k.Marshal())
 	return s + map[bool]string{true: " " + comment, false: ""}[len(comment) > 0]
@@ -27,8 +33,9 @@ func publicKeyString(k ssh.PublicKey, comment string) string {
 
 // KeyRing saves the state of ssh-agent
 type KeyRing struct {
-	agent.ExtendedAgent
-	settings *store.Settings
+	keyring        agent.ExtendedAgent
+	settings       *store.Settings
+	NotifyCallback func(action string, data interface{})
 }
 
 // AddKeySettings saves PrivateKeyFile informatio in the store
@@ -37,15 +44,11 @@ func (k *KeyRing) AddKeySettings(key sshkey.PrivateKeyFile) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	data := sshkey.PrivateKeyFile{
-		ID:         id.String(),
-		FileType:   key.FileType,
-		Encryption: key.Encryption,
-		FilePath:   key.FilePath,
-		PublicKey:  key.PublicKey,
-	}
-	k.settings.Keys = append(k.settings.Keys, data)
-	err = k.settings.SecretStore.Set(id.String(), key.Passphrase)
+	key.ID = id.String()
+	pss := key.Passphrase
+	key.Passphrase = ""
+	k.settings.Keys = append(k.settings.Keys, key)
+	err = k.settings.SecretStore.Set(id.String(), pss)
 	if err != nil {
 		return "", err
 	}
@@ -53,6 +56,7 @@ func (k *KeyRing) AddKeySettings(key sshkey.PrivateKeyFile) (string, error) {
 	if err != nil {
 		return "", err
 	}
+	log.Printf("AddKeySettings:%s", JSONDump(key))
 	return id.String(), nil
 }
 
@@ -138,7 +142,8 @@ func LoadKeyfile(filePath string, passPhrase string) (*sshkey.PrivateKeyFile, *a
 		fileType := "ppk"
 		algo := puttyKey.Algo
 		if len(passPhrase) == 0 && puttyKey.Encryption != "none" {
-			return &sshkey.PrivateKeyFile{FilePath: filePath, FileType: fileType,
+			return &sshkey.PrivateKeyFile{FilePath: filePath,
+				FileType: fileType, StoreType: LocalStore,
 				PublicKey:  sshkey.PublicKey{Type: algo},
 				Encryption: puttyKey.Encryption != "none"}, nil, nil
 		}
@@ -152,7 +157,7 @@ func LoadKeyfile(filePath string, passPhrase string) (*sshkey.PrivateKeyFile, *a
 		}
 		pkinfo := getkeyInfo(signer, puttyKey.Comment)
 		addkey := &agent.AddedKey{PrivateKey: pk, Comment: puttyKey.Comment}
-		return &sshkey.PrivateKeyFile{FilePath: filePath, FileType: fileType,
+		return &sshkey.PrivateKeyFile{FilePath: filePath, FileType: fileType, StoreType: LocalStore,
 			PublicKey:  pkinfo,
 			Encryption: puttyKey.Encryption != "none"}, addkey, nil
 
@@ -171,13 +176,13 @@ func LoadKeyfile(filePath string, passPhrase string) (*sshkey.PrivateKeyFile, *a
 			}
 			addkey := &agent.AddedKey{PrivateKey: key}
 			pkinfo := getkeyInfo(signer, "")
-			return &sshkey.PrivateKeyFile{FilePath: filePath, FileType: fileType,
+			return &sshkey.PrivateKeyFile{FilePath: filePath, FileType: fileType, StoreType: LocalStore,
 				PublicKey:  pkinfo,
 				Encryption: false}, addkey, nil
 		}
 		switch err.(type) {
 		case *ssh.PassphraseMissingError:
-			return &sshkey.PrivateKeyFile{FilePath: filePath, FileType: fileType, Encryption: true}, nil, nil
+			return &sshkey.PrivateKeyFile{FilePath: filePath, FileType: fileType, StoreType: LocalStore, Encryption: true}, nil, nil
 		default:
 			return nil, nil, err
 		}
@@ -194,7 +199,7 @@ func LoadKeyfile(filePath string, passPhrase string) (*sshkey.PrivateKeyFile, *a
 	}
 	addkey := &agent.AddedKey{PrivateKey: key}
 	pkinfo := getkeyInfo(signer, "")
-	return &sshkey.PrivateKeyFile{FilePath: filePath, FileType: fileType, PublicKey: pkinfo, Encryption: true}, addkey, nil
+	return &sshkey.PrivateKeyFile{FilePath: filePath, FileType: fileType, StoreType: LocalStore, PublicKey: pkinfo, Encryption: true}, addkey, nil
 }
 
 // CheckKeyType Check the information in the PrivateKey file
@@ -208,7 +213,7 @@ func NewKeyRing(s *store.Settings) *KeyRing {
 	k := &KeyRing{settings: s}
 	a := agent.NewKeyring()
 	if extendedAgent, ok := a.(agent.ExtendedAgent); ok {
-		k.ExtendedAgent = extendedAgent
+		k.keyring = extendedAgent
 		return k
 	}
 	return nil
@@ -265,6 +270,14 @@ func (k *KeyRing) KeyList() ([]sshkey.PrivateKeyFile, error) {
 	return k.mergeKeyList(agentKeys)
 }
 
+func JSONDump(data interface{}) string {
+	b, err := json.Marshal(data)
+	if err != nil {
+		return ""
+	}
+	return string(b)
+}
+
 // KeyList wails function to display the key list with
 func (k *KeyRing) mergeKeyList(agentKeys []sshkey.PublicKey) ([]sshkey.PrivateKeyFile, error) {
 	res := make([]sshkey.PrivateKeyFile, 0, len(agentKeys)+len(k.settings.Keys))
@@ -279,6 +292,7 @@ func (k *KeyRing) mergeKeyList(agentKeys []sshkey.PublicKey) ([]sshkey.PrivateKe
 	for i := range k.settings.Keys {
 		if !hasKey(agentKeys, k.settings.Keys[i]) {
 			res = append(res, k.settings.Keys[i])
+			log.Printf("mergeKeyList-key:%s", JSONDump(k.settings.Keys[i]))
 		}
 	}
 	return res, nil
@@ -313,4 +327,50 @@ func generatePrivateKey(bitSize int) (*rsa.PrivateKey, error) {
 		return nil, err
 	}
 	return privateKey, nil
+}
+
+func (k *KeyRing) notice(action string, data interface{}) {
+	if k.NotifyCallback == nil {
+		return
+	}
+	k.NotifyCallback(action, data)
+}
+
+func (k *KeyRing) List() ([]*agent.Key, error) {
+	k.notice("List", nil)
+	return k.keyring.List()
+}
+func (k *KeyRing) Sign(key ssh.PublicKey, data []byte) (*ssh.Signature, error) {
+	k.notice("Sign", nil)
+	return k.keyring.Sign(key, data)
+}
+func (k *KeyRing) Add(key agent.AddedKey) error {
+	k.notice("Add", nil)
+	return k.keyring.Add(key)
+}
+func (k *KeyRing) Remove(key ssh.PublicKey) error {
+	k.notice("Remove", nil)
+	return k.keyring.Remove(key)
+}
+func (k *KeyRing) RemoveAll() error {
+	k.notice("RemoveAll", nil)
+	return k.keyring.RemoveAll()
+}
+func (k *KeyRing) Lock(passphrase []byte) error {
+	return k.keyring.Lock(passphrase)
+}
+func (k *KeyRing) Unlock(passphrase []byte) error {
+	return k.keyring.Unlock(passphrase)
+}
+func (k *KeyRing) Signers() ([]ssh.Signer, error) {
+	k.notice("Signers", nil)
+	return k.Signers()
+}
+func (k *KeyRing) SignWithFlags(key ssh.PublicKey, data []byte, flags agent.SignatureFlags) (*ssh.Signature, error) {
+	k.notice("SignWithFlags", nil)
+	return k.keyring.SignWithFlags(key, data, flags)
+}
+func (k *KeyRing) Extension(extensionType string, contents []byte) ([]byte, error) {
+	k.notice("Extension", nil)
+	return k.keyring.Extension(extensionType, contents)
 }
