@@ -67,7 +67,6 @@ func (a *App) startup(ctx context.Context) {
 		go ua.RunAgent()
 		runtime.LogInfo(ctx, "Start Unix domain socket agent..")
 	}
-
 }
 
 func (a *App) OpenFile() (string, error) {
@@ -93,6 +92,7 @@ func (a *App) Greet(name string) string {
 }
 
 func (a *App) showWindow() {
+	runtime.LogDebug(a.ctx, "showWindow")
 	runtime.WindowShow(a.ctx)
 }
 

@@ -1,33 +1,8 @@
 <script>
-    import AddKeys from "./AddKeys.svelte";
-    import Loadedkeys from "./Loadedkeys.svelte";
+    import ListKeys from "./ListKeys.svelte";
     import Settings from "./Settings.svelte";
-    import Paper, { Title, Content } from "@smui/paper";
-    import Button, { Label, Icon } from "@smui/button";
-    import Card from "@smui/card";
-    import TabBar from "@smui/tab-bar";
-    import Tab from "@smui/tab";
     import { SvelteToast } from "@zerodevx/svelte-toast";
-
-    let name = "";
-    let tabs = [
-        {
-            icon: "support_agent",
-            label: "Loaded keys",
-            component: Loadedkeys,
-        },
-        {
-            icon: "key",
-            label: "Add keys",
-            component: AddKeys,
-        },
-        {
-            icon: "settings",
-            label: "Settings",
-            component: Settings,
-        },
-    ];
-    let active = tabs[0];
+    import IconButton from "@smui/icon-button";
 
     function exit() {
         window.go.main.App.Quit();
@@ -46,19 +21,57 @@
 </script>
 
 <main>
-    <div id="input" data-wails-no-drag>
-        <div>
-            <TabBar {tabs} let:tab bind:active>
-                <Tab {tab}>
-                    <Icon class="material-icons">{tab.icon}</Icon>
-                    <Label>{tab.label}</Label>
-                </Tab>
-            </TabBar>
+    <div class="bar-container">
+        <div class="top-bar-row">
+            <section class="top-app-bar_section-align-start">
+                <IconButton class="material-icons">menu</IconButton>
+                <span class="mdc-top-app-bar__title">SSH key agent</span>
+            </section>
+            <section class="top-app-bar_section-align-end">
+                <IconButton class="material-icons">build</IconButton>
+            </section>
         </div>
-        <svelte:component this={active.component} />
+    </div>
+
+    <div class="list">
+        <ListKeys />
     </div>
     <SvelteToast {toastOptions} />
 </main>
 
 <style>
+    .bar-container {
+        position: static;
+        display: flex;
+        flex-direction: column;
+        justify-content: space-between;
+        box-sizing: border-box;
+        width: 100%;
+        z-index: 4;
+    }
+    .top-bar-row {
+        display: flex;
+        position: relative;
+        box-sizing: border-box;
+        width: 100%;
+        height: 48px;
+    }
+    .top-app-bar_section-align-start {
+        flex: 1 1 auto;
+        display: inline-flex;
+        align-items: center;
+        z-index: 1;
+        padding: 0 4px;
+        justify-content: flex-start;
+        order: -1;
+    }
+    .top-app-bar_section-align-end {
+        flex: 1 1 auto;
+        display: inline-flex;
+        align-items: center;
+        z-index: 1;
+        padding: 0 4px;
+        justify-content: flex-end;
+        order: 1;
+    }
 </style>

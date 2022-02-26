@@ -2,7 +2,7 @@ package wintray
 
 import (
 	"crypto/rand"
-	"log"
+	"time"
 	"unsafe"
 
 	"github.com/cwchiu/go-winapi"
@@ -27,15 +27,10 @@ func (ti *TrayIcon) wndProc(hWnd winapi.HWND, msg uint32, wParam, lParam uintptr
 	case TrayIconMsg:
 		switch nmsg := winapi.LOWORD(uint32(lParam)); nmsg {
 		case NIN_BALLOONUSERCLICK:
-			map[bool]func(){
-				true:  func() { log.Println("user clicked the balloon notification") },
-				false: ti.BalloonClickFunc,
-			}[ti.BalloonClickFunc == nil]()
+			ti.BalloonClickFunc()
 		case winapi.WM_LBUTTONDOWN:
-			map[bool]func(){
-				true:  func() { log.Println("user clicked the tray icon") },
-				false: ti.TrayClickFunc,
-			}[ti.TrayClickFunc == nil]()
+			//ti.ShowBalloonNotification("title", "WM_LBUTTONDOWN")
+			ti.TrayClickFunc()
 		}
 	case winapi.WM_DESTROY:
 		winapi.PostQuitMessage(0)
@@ -128,6 +123,11 @@ func (ti *TrayIcon) ShowBalloonNotification(title, text string) {
 
 func NewTrayIcon() *TrayIcon {
 	ti := &TrayIcon{guid: newGUID()}
+	return ti
+}
+
+func (ti *TrayIcon) RunTray() {
+	time.Sleep(2 * time.Second)
 	ti.hwnd = ti.createMainWindow()
 	icon := winapi.LoadIcon(winapi.GetModuleHandle(nil), winapi.MAKEINTRESOURCE(3))
 	data := ti.initData()
@@ -136,10 +136,6 @@ func NewTrayIcon() *TrayIcon {
 	winapi.Shell_NotifyIcon(winapi.NIM_ADD, data)
 	ti.SetIcon(icon)
 	ti.SetTooltip("ssh-agent")
-	return ti
-}
-
-func (ti *TrayIcon) RunTray() {
 	/*
 		go func() {
 			for i := 1; i <= 3; i++ {
@@ -151,7 +147,7 @@ func (ti *TrayIcon) RunTray() {
 			}
 		}()
 	*/
-	//winapi.ShowWindow(hwnd, winapi.SW_SHOW)
+	//winapi.ShowWindow(ti.hwnd, winapi.SW_SHOW)
 	winapi.ShowWindow(ti.hwnd, winapi.SW_HIDE)
 	var msg winapi.MSG
 	for {

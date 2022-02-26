@@ -67,7 +67,7 @@ export default {
 		copy({
 			targets: [
 				{src: 'src/index.html', dest: 'dist/'},
-				//{src: 'src/global.css', dest: 'dist/'},
+				{src: 'src/global.css', dest: 'dist/'},
 				{src: 'src/assets', dest: 'dist/'},
                 //{ src: 'src/cssreset.css', dest: 'dist/' },
 			]

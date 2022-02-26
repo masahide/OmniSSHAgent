@@ -1,13 +1,11 @@
 <script>
-    import Paper, { Title, Subtitle, Content } from "@smui/paper";
-    import Card from "@smui/card";
+    import Paper, { Content } from "@smui/paper";
+    import { Icon } from "@smui/icon-button";
     import Button, { Label } from "@smui/button";
     import AddFileDialog from "./AddFileDialog.svelte";
     import { toast } from "@zerodevx/svelte-toast";
     import Accordion, { Panel, Header } from "@smui-extra/accordion";
-    import IconButton, { Icon } from "@smui/icon-button";
     import Textfield from "@smui/textfield";
-    import HelperText from "@smui/textfield/helper-text";
 
     const red = {
         duration: 7000, // duration of progress bar tween to the `next` value
@@ -24,7 +22,6 @@
     };
 
     function handleData(event) {
-        let pkfile = event.detail.pkfile;
         window.runtime.LogDebug(JSON.stringify(event.detail));
         addkey(event.detail);
     }
