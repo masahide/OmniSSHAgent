@@ -37,12 +37,14 @@ type Settings struct {
 }
 
 func initSetting() SaveData {
+	home, _ := os.UserHomeDir()
 	return SaveData{
 		Keys:            []sshkey.PrivateKeyFile{},
 		PageantAgent:    true,
 		NamedPipeAgent:  true,
 		UnixSocketAgent: true,
 		CygWinAgent:     true,
+		UnixSocketPath:  filepath.Join(home, "OmniSSHAgent.sock"),
 	}
 }
 

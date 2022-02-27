@@ -42,7 +42,7 @@ func (a *App) startup(ctx context.Context) {
 	debug := false
 	a.keyRing = sshutil.NewKeyRing(a.settings)
 	if err := a.keyRing.AddKeys(); err != nil {
-		log.Printf("KeyRing.AddKeys err: %w", err)
+		log.Printf("KeyRing.AddKeys err: %s", err)
 	}
 	a.keyRing.NotifyCallback = a.notice
 	pa := &pageant.Pageant{ExtendedAgent: a.keyRing, Debug: debug}

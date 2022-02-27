@@ -33,7 +33,7 @@
                             on:click={() => menu.setOpen(true)}
                             class="material-icons">menu</IconButton
                         >
-                        <span class="mdc-top-app-bar__title">SSH key agent</span
+                        <span class="mdc-top-app-bar__title">Omni SSH agent</span
                         >
                     </section>
                     <section class="top-app-bar_section-align-end">
