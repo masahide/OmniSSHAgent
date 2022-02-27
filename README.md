@@ -48,6 +48,18 @@ Once the Services app is open, find the `OpenSSH Authentication Agent` service a
 3. Run `OmniSSHAgent.exe`
 4. Press the `NEW OPEN FILE` button to add a private key file. Or you can use `ssh-add` command or [KeePassXC](https://keepassxc.org/) to add your private key.
 
+### For use with WSL2
+Setting up socat pipe in ubuntu environment
+
+1. Download [ubuntu-bash.setup.sh](hack/ubuntu-bash.setup.sh)
+```bash
+mkdir -p $HOME/omni-socat
+curl -sL https://raw.githubusercontent.com/masahide/OmniSSHAgent/main/hack/ubuntu-bash.setup.sh -o $HOME/omni-socat/ubuntu-bash.setup.sh
+```
+2. Add the following line to `~/.bashrc`
+```
+source $HOME/omni-socat/ubuntu-bash.setup.sh
+```
 
 ## Supported key file formats
 - PuTTY private key file (.ppk) file format
