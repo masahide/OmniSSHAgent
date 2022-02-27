@@ -3,6 +3,7 @@
 
 @startuml
 
+
 skinparam defaultTextAlignment center
 skinparam classFontColor automatic
 skinparam classHeaderBackgroundColor #444
@@ -11,7 +12,7 @@ left to right direction
 
 rectangle ssh-add {
   agent "keepassXC" as keepass #skyblue
-  agent "<Microsoft>\nssh-add" as mssshadd #skyblue
+  agent "<Windows>\nssh-add" as mssshadd #skyblue
   agent "<WSL1>\nssh-add" as wsl1sshadd #gray
   agent "<cygwin(MSYS2)>\nssh-add" as cygwinsshadd #darkgoldenrod
 }
@@ -21,32 +22,26 @@ rectangle omni-ssh-agent {
   agent "omni-socat" as proxy  #pink;line:red;text:black;
 }  
 
-rectangle Proxy {
-  agent "<WSL2>\nsocat" as socat #limegreen
-}
-
 rectangle Client {
-  agent "<Microsoft>\nOpenSSH\nssh.exe" as msssh #skyblue
+  agent "<Windows>\nOpenSSH\nssh.exe" as msssh #skyblue
   agent "WinSCP\nFileZilla\nPuTTY" as putty #skyblue
   agent "<WSL1>\nssh"  as wsl1ssh #gray
-  agent "<WSL2>\nssh"  as wsl2ssh #limegreen
+  agent "<WSL2>\n(used socat pipe)\nssh"  as wsl2ssh #limegreen
   agent "<cygwin\n(MSYS2)>\nssh.exe" as cygwinssh #darkgoldenrod
 }
 
 mssshadd --> omniagent #line:blue;line.bold;text:blue : "NamedPipe"
-keepass --> omniagent #line:blue;line.bold;text:blue : "NamedPipe"
+keepass --> omniagent #line:green;line.bold;text:green : "NamedPipe or pageant_shm"
 wsl1sshadd --> omniagent  #line:black;line.bold;text:black : "WSL1UnixSocket"
 cygwinsshadd --> omniagent  #line:sienna;line.bold;text:sienna : "cygwinUnixSocket"
 
 omniagent --> msssh #line:blue;line.bold;text:blue : "NamedPipe"
 omniagent --> putty #line:crimson;line.bold;text:crimson : "pageant_shm"
 omniagent --> wsl1ssh #line:black;line.bold;text:black : "WSL1UnixSocket"
-omniagent --> proxy  #line:blue;line.bold;text:blue : "NamedPipe"
+omniagent -d-> proxy  #line:blue;line.bold;text:blue : "NamedPipe"
 
-proxy -> socat : "stdout/stdin"
-socat --> wsl2ssh #line:seagreen;line.bold;text:seagreen : "WSL2UnixSOcket"
+proxy --> wsl2ssh : "stdout/stdin"
 
 omniagent --> cygwinssh #line:sienna;line.bold;text:sienna : "cygwinUnixSocket"
 
 @enduml
-
