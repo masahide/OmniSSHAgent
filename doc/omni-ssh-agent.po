@@ -1,4 +1,4 @@
-# omni-ssh-agent
+# OmniSSHAgent
 
 
 @startuml
@@ -7,6 +7,8 @@
 skinparam defaultTextAlignment center
 skinparam classFontColor automatic
 skinparam classHeaderBackgroundColor #444
+
+skinparam nodeFontSize 20
 
 left to right direction
 
@@ -17,8 +19,8 @@ rectangle ssh-add {
   agent "<cygwin(MSYS2)>\nssh-add" as cygwinsshadd #darkgoldenrod
 }
 
-rectangle omni-ssh-agent {
-  agent "omni-agent" as omniagent  #pink;line:red;line.bold;text:black;
+rectangle OmniSSHAgent {
+  node "OmniSSHAgent" as omniagent  #pink;line:red;line.bold;text:black;
   agent "omni-socat" as proxy  #pink;line:red;text:black;
 }  
 
