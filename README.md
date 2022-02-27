@@ -52,7 +52,7 @@ Once the Services app is open, find the `OpenSSH Authentication Agent` service a
 ### For use with WSL2
 Setting up socat pipe in ubuntu environment
 
-1. Download [ubuntu-bash.setup.sh](hack/ubuntu-bash.setup.sh)
+1. Download [ubuntu-bash.setup.sh](hack/ubuntu-bash.setup.sh).sh with the following command
 ```bash
 mkdir -p $HOME/omni-socat
 curl -sL https://raw.githubusercontent.com/masahide/OmniSSHAgent/main/hack/ubuntu-bash.setup.sh -o $HOME/omni-socat/ubuntu-bash.setup.sh
