@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"log"
 	"path/filepath"
 
 	"github.com/masahide/ssh-agent-win/pkg/namedpipe"
@@ -41,24 +42,24 @@ func (a *App) startup(ctx context.Context) {
 	debug := false
 	a.keyRing = sshutil.NewKeyRing(a.settings)
 	if err := a.keyRing.AddKeys(); err != nil {
-		runtime.LogFatal(ctx, err.Error())
+		log.Printf("KeyRing.AddKeys err: %w", err)
 	}
 	a.keyRing.NotifyCallback = a.notice
 	pa := &pageant.Pageant{ExtendedAgent: a.keyRing, Debug: debug}
 	if a.settings.PageantAgent {
 		go pa.RunAgent()
 	}
-	runtime.LogInfo(ctx, "Start pageant...")
+	log.Println("Start pageant...")
 	if a.settings.NamedPipeAgent {
 		pipeName := ""
 		na := &namedpipe.NamedPipe{ExtendedAgent: a.keyRing, Debug: debug, Name: pipeName}
-		runtime.LogInfo(ctx, "Start NamedPipe agent..")
+		log.Println("Start NamedPipe agent..")
 		go na.RunAgent()
 	}
 	if a.settings.UnixSocketAgent {
 		ua := &unix.DomainSock{Agent: a.keyRing, Debug: debug, Path: a.settings.UnixSocketPath}
 		go ua.RunAgent()
-		runtime.LogInfo(ctx, "Start Unix domain socket agent..")
+		log.Println("Start Unix domain socket agent..")
 	}
 }
 
@@ -92,7 +93,7 @@ func (a *App) Greet(name string) string {
 }
 
 func (a *App) showWindow() {
-	runtime.LogDebug(a.ctx, "showWindow")
+	//runtime.LogDebug(a.ctx, "showWindow")
 	runtime.WindowShow(a.ctx)
 }
 
@@ -124,7 +125,7 @@ func (a *App) DeleteKey(sha256 string) error {
 	if err != nil {
 		return err
 	}
-	runtime.LogDebug(a.ctx, c)
+	//runtime.LogDebug(a.ctx, c)
 	if c != "Yes" {
 		return errors.New("cancel")
 	}
