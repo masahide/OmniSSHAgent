@@ -39,7 +39,7 @@ Set-Service -StartupType Disabled ssh-agent
 Once the Services app is open, find the `OpenSSH Authentication Agent` service and set the `Service Status` to `Stop` and the `Startup Type` to `Disabled`.
 
 2. Run `OmniSSHAgent.exe`
-3. Press the `NEW OPEN FILE` button to add a private key file. Or you can use ssh-add command or KeePassXC to add your private key.
+3. Press the `NEW OPEN FILE` button to add a private key file. Or you can use `ssh-add` command or [KeePassXC](https://keepassxc.org/) to add your private key.
 
 
 ## Supported key file formats
