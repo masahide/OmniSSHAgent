@@ -1,16 +1,14 @@
 <script>
-    import { createEventDispatcher } from "svelte";
-    import Paper, { Title, Subtitle, Content } from "@smui/paper";
+    import { Title, Content } from "@smui/paper";
     import Dialog, { Actions } from "@smui/dialog";
     import Button, { Label } from "@smui/button";
-    import List, { Item, Text, PrimaryText, SecondaryText } from "@smui/list";
     import Textfield from "@smui/textfield";
     import HelperText from "@smui/textfield/helper-text";
     import Card from "@smui/card";
     import FormField from "@smui/form-field";
     import Switch from "@smui/switch";
     import { toast } from "@zerodevx/svelte-toast";
-    import IconButton, { Icon } from "@smui/icon-button";
+    import IconButton from "@smui/icon-button";
     import Banner from "@smui/banner";
 
     let open = false;

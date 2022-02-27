@@ -2,12 +2,9 @@
     import ListKeys from "./ListKeys.svelte";
     import Settings from "./Settings.svelte";
     import { SvelteToast } from "@zerodevx/svelte-toast";
-    import IconButton, { Icon } from "@smui/icon-button";
-    import { mdiGithub } from "@mdi/js";
-    import { Svg } from "@smui/common/elements";
+    import IconButton  from "@smui/icon-button";
     import Menu from "@smui/menu";
     import List, { Item, Separator, Text } from "@smui/list";
-    import Button, { Label } from "@smui/button";
 
     function exit() {
         window.go.main.App.Quit();
@@ -24,7 +21,6 @@
         classes: [], // user-defined classes
     };
     let menu;
-    let clicked = "nothing yet";
 </script>
 
 <main>
@@ -41,11 +37,6 @@
                         >
                     </section>
                     <section class="top-app-bar_section-align-end">
-                        <IconButton>
-                            <Icon component={Svg} viewBox="0 0 24 24">
-                                <path fill="currentColor" d={mdiGithub} />
-                            </Icon>
-                        </IconButton>
                         <Settings />
                     </section>
                 </div>
