@@ -35,8 +35,7 @@ OmniSSHAgent is a program to simplify what used to be a chaotic situation, as sh
 Stop-Service ssh-agent
 Set-Service -StartupType Disabled ssh-agent
 ```
-Alternatively, you can set it through the GUI if you prefer.
-Bring up the start menu and type Services. You’ll see the Services app listed. 
+  - Alternatively, you can set it through the GUI if you prefer.Bring up the start menu and type Services. You’ll see the Services app listed. 
 Once the Services app is open, find the "OpenSSH Authentication Agent" service and set the "Service Status" to "Stop" and the "Startup Type" to "Disabled".
 
 2. Run `OmniSSHAgent.exe`
