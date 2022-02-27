@@ -28,6 +28,18 @@ OmniSSHAgent is a program to simplify what used to be a chaotic situation, as sh
 - Unix domain socket for WSL1
 - ~~Unix domain socket for MSYS2(Cygwin)~~ ( [#1](https://github.com/masahide/OmniSSHAgent/issues/1) )
 
+## Usege
+
+1. If you are using Windows native ssh-agent - stop it. 
+Open powershell with administrator privileges and execute the following.
+```bash
+Stop-Service ssh-agent
+Set-Service -StartupType Disabled ssh-agent
+```
+Alternatively, you can set it through the GUI if you prefer.
+
+Bring up the start menu and type Services. You’ll see the Services app listed. 
+Once the Services app is open, find the "OpenSSH Authentication Agent" service and set the "Service Status" to "Stop" and the "Startup Type" to "Disabled".
 
 ## Supported key file formats
 - PuTTY private key file (.ppk) file format
