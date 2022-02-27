@@ -12,13 +12,13 @@ left to right direction
 
 rectangle ssh-add {
   agent "keepassXC" as keepass #skyblue
-  agent "<Microsoft>\nssh-add" as mssshadd #skyblue
+  agent "<Windows>\nssh-add" as mssshadd #skyblue
   agent "<WSL1>\nssh-add" as wsl1sshadd #gray
   agent "<cygwin(MSYS2)>\nssh-add" as cygwinsshadd #darkgoldenrod
 }
 
 rectangle ssh-agent {
-  agent "<Microsoft>\nssh-agent" as msagent  #skyblue
+  agent "<Windows>\nssh-agent" as msagent  #skyblue
   agent "pageant" as pageant   #skyblue
   agent "<WSL1>\nssh-agent" as wsl1agent #gray
   agent "<cygwin(MSYS2)>\nssh-agent" as cygwinagent #darkgoldenrod
@@ -33,7 +33,7 @@ rectangle Proxy {
 }
 
 rectangle Client {
-  agent "<Microsoft>\nOpenSSH\nssh.exe" as msssh #skyblue
+  agent "<Windows>\nOpenSSH\nssh.exe" as msssh #skyblue
   agent "WinSCP\nFileZilla\nPuTTY" as putty #skyblue
   agent "<WSL1>\nssh"  as wsl1ssh #gray
   agent "<WSL2>\n(used socat pipe)\nssh"  as wsl2ssh #limegreen
