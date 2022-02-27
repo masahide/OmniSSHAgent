@@ -8,12 +8,12 @@ import (
 
 	"github.com/getlantern/systray"
 	"github.com/kelseyhightower/envconfig"
-	"github.com/masahide/ssh-agent-win/cmd/testcli/icon"
-	"github.com/masahide/ssh-agent-win/pkg/namedpipe"
-	"github.com/masahide/ssh-agent-win/pkg/npipe2stdin"
-	"github.com/masahide/ssh-agent-win/pkg/pageant"
-	"github.com/masahide/ssh-agent-win/pkg/unix"
-	"github.com/masahide/ssh-agent-win/pkg/wintray"
+	"github.com/masahide/OmniSSHAgent/cmd/testcli/icon"
+	"github.com/masahide/OmniSSHAgent/pkg/namedpipe"
+	"github.com/masahide/OmniSSHAgent/pkg/npipe2stdin"
+	"github.com/masahide/OmniSSHAgent/pkg/pageant"
+	"github.com/masahide/OmniSSHAgent/pkg/unix"
+	"github.com/masahide/OmniSSHAgent/pkg/wintray"
 
 	"github.com/apenwarr/fixconsole"
 	"golang.org/x/crypto/ssh/agent"
@@ -74,9 +74,9 @@ func main() {
 
 func onReady() {
 	systray.SetTemplateIcon(icon.Data, icon.Data)
-	systray.SetTitle("ssh-agent-win")
+	systray.SetTitle("OmniSSHAgent")
 	systray.SetTooltip("ssh-agent")
-	mQuitOrig := systray.AddMenuItem("Exit ssh-agent-win", "Exit the app")
+	mQuitOrig := systray.AddMenuItem("Exit OmniSSHAgent", "Exit the app")
 	go func() {
 		<-mQuitOrig.ClickedCh
 		systray.Quit()

@@ -15,8 +15,8 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/kayrus/putty"
-	"github.com/masahide/ssh-agent-win/pkg/sshkey"
-	"github.com/masahide/ssh-agent-win/pkg/store"
+	"github.com/masahide/OmniSSHAgent/pkg/sshkey"
+	"github.com/masahide/OmniSSHAgent/pkg/store"
 	"golang.org/x/crypto/ssh"
 	"golang.org/x/crypto/ssh/agent"
 )

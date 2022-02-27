@@ -6,8 +6,8 @@ import (
 	"os"
 	"path/filepath"
 
-	"github.com/masahide/ssh-agent-win/pkg/store"
-	"github.com/masahide/ssh-agent-win/pkg/store/local"
+	"github.com/masahide/OmniSSHAgent/pkg/store"
+	"github.com/masahide/OmniSSHAgent/pkg/store/local"
 	"github.com/wailsapp/wails/v2/pkg/options/mac"
 
 	"github.com/wailsapp/wails/v2"
@@ -17,7 +17,7 @@ import (
 )
 
 const (
-	AppName = "ssh-agent-win"
+	AppName = "OmniSSHAgent"
 )
 
 //go:embed frontend/dist

@@ -25,7 +25,7 @@ func (a *DomainSock) RunAgent() error {
 		if err != nil {
 			return fmt.Errorf("userHomeDir err:%w", err)
 		}
-		a.Path = filepath.Join(home, "ssh-agent-win.sock")
+		a.Path = filepath.Join(home, "OmniSSHAgent.sock")
 	}
 	_, err := os.Stat(a.Path)
 	if err == nil || !os.IsNotExist(err) {

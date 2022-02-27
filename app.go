@@ -7,13 +7,13 @@ import (
 	"log"
 	"path/filepath"
 
-	"github.com/masahide/ssh-agent-win/pkg/namedpipe"
-	"github.com/masahide/ssh-agent-win/pkg/pageant"
-	"github.com/masahide/ssh-agent-win/pkg/sshkey"
-	"github.com/masahide/ssh-agent-win/pkg/sshutil"
-	"github.com/masahide/ssh-agent-win/pkg/store"
-	"github.com/masahide/ssh-agent-win/pkg/unix"
-	"github.com/masahide/ssh-agent-win/pkg/wintray"
+	"github.com/masahide/OmniSSHAgent/pkg/namedpipe"
+	"github.com/masahide/OmniSSHAgent/pkg/pageant"
+	"github.com/masahide/OmniSSHAgent/pkg/sshkey"
+	"github.com/masahide/OmniSSHAgent/pkg/sshutil"
+	"github.com/masahide/OmniSSHAgent/pkg/store"
+	"github.com/masahide/OmniSSHAgent/pkg/unix"
+	"github.com/masahide/OmniSSHAgent/pkg/wintray"
 	"github.com/wailsapp/wails/v2/pkg/runtime"
 )
 

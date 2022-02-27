@@ -5,8 +5,8 @@ import (
 	"testing"
 
 	"github.com/google/go-cmp/cmp"
-	"github.com/masahide/ssh-agent-win/pkg/sshkey"
-	"github.com/masahide/ssh-agent-win/pkg/store"
+	"github.com/masahide/OmniSSHAgent/pkg/sshkey"
+	"github.com/masahide/OmniSSHAgent/pkg/store"
 )
 
 func TestCheckKeyType(t *testing.T) {

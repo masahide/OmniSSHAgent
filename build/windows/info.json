@@ -5,10 +5,10 @@
 	"info": {
 		"0000": {
 			"ProductVersion": "1.0.0",
-			"CompanyName": "ssh-agent-win",
-			"FileDescription": "ssh-agent-win",
+			"CompanyName": "OmniSSHAgent",
+			"FileDescription": "OmniSSHAgent",
 			"LegalCopyright": "Copyright.........",
-			"ProductName": "ssh-agent-win",
+			"ProductName": "OmniSSHAgent",
 			"Comments": "Built using Wails (https://wails.app)"
 		}
 	}

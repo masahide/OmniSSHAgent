@@ -1,4 +1,4 @@
-module github.com/masahide/ssh-agent-win
+module github.com/masahide/OmniSSHAgent
 
 go 1.17
 

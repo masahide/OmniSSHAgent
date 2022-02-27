@@ -6,7 +6,7 @@ import (
 	"os"
 	"path/filepath"
 
-	"github.com/masahide/ssh-agent-win/pkg/sshkey"
+	"github.com/masahide/OmniSSHAgent/pkg/sshkey"
 )
 
 const (

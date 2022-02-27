@@ -1,5 +1,5 @@
 {
-  "name": "ssh-agent-win",
+  "name": "OmniSSHAgent",
   "assetdir": "./frontend/dist",
   "reloaddirs": "./frontend/src/",
   "frontend:build": "npm run build",
@@ -9,7 +9,7 @@
   "version": "2",
   "Path": "",
   "BuildDir": "",
-  "outputfilename": "ssh-agent-win.exe",
+  "outputfilename": "OmniSSHAgent.exe",
   "OutputType": "",
   "Platform": "",
   "Author": {
