@@ -6,6 +6,11 @@
 
 The chaotic windows ssh-agent has been integrated into one program.
 
+### Screen shot
+
+<img src="https://github.com/masahide/OmniSSHAgent/blob/main/doc/screen.png?raw=true" width="500">
+<img src="https://github.com/masahide/OmniSSHAgent/blob/main/doc/screen-setup.png?raw=true" width="500">
+
 ### Chaos Map of SSH-Agent on Windows
 There are several different communication methods for ssh-agent in windows, and it is very complicated to use and configure them.
 The following diagram shows the current communication methods for windows ssh-agent.
