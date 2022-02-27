@@ -33,4 +33,12 @@ OmniSSHAgent is a program to simplify what used to be a chaotic situation, as sh
 - rsa
 - ecdsa 
 - ed25519 
+
 (dsa, ecdsa-sk, ed25519-sk are not supported)
+
+
+## FAQ
+
+### Where is the passphrase for the private key stored?
+
+It's stored in[Windows Credential Manager](https://support.microsoft.com/en-us/windows/accessing-credential-manager-1b5c916a-6a16-889f-8581-fc16e8165ac0).
