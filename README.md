@@ -16,6 +16,10 @@ The following diagram shows the current communication methods for windows ssh-ag
 OmniSSHAgent is a program to simplify what used to be a chaotic situation, as shown in the following figure.
 ![OmniSSHAgentmap](https://github.com/masahide/OmniSSHAgent/blob/main/doc/OmniSSHAgent.png?raw=true)
 
+## Required environment for operation
+
+- Windows10
+- [Microsoft Edge WebView2](https://developer.microsoft.com/en-us/microsoft-edge/webview2/) 
 
 ## The following interfaces are supported
 - pageant.exe(PuTTY) shared memory
