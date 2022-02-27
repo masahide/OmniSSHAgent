@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"encoding/json"
 	"log"
 
 	"github.com/kelseyhightower/envconfig"
@@ -45,8 +46,18 @@ func main() {
 		log.Fatal(err.Error())
 	}
 
+	//	fmt.Println(jsonDump(settings))
 	if settings.NamedPipeAgent {
 		proxy("")
 		return
 	}
+	log.Fatal("Failed to connect to OmniSSHAgent. Enable the Named pipe interface for OmniSSHAgent.")
+}
+
+func jsonDump(data interface{}) string {
+	b, err := json.Marshal(data)
+	if err != nil {
+		return ""
+	}
+	return string(b)
 }
