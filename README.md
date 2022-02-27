@@ -16,6 +16,10 @@ The following diagram shows the current communication methods for windows ssh-ag
 OmniSSHAgent is a program to simplify what used to be a chaotic situation, as shown in the following figure.
 ![OmniSSHAgentmap](https://github.com/masahide/OmniSSHAgent/blob/main/doc/OmniSSHAgent.png?raw=true)
 
+## Required environment for operation
+
+- Windows10
+- [Microsoft Edge WebView2](https://developer.microsoft.com/en-us/microsoft-edge/webview2/) 
 
 ## The following interfaces are supported
 - pageant.exe(PuTTY) shared memory
@@ -23,6 +27,21 @@ OmniSSHAgent is a program to simplify what used to be a chaotic situation, as sh
 - NamedPipe on Windows
 - Unix domain socket for WSL1
 - ~~Unix domain socket for MSYS2(Cygwin)~~ ( [#1](https://github.com/masahide/OmniSSHAgent/issues/1) )
+
+## Usege
+
+1. If you are using Windows native ssh-agent - stop it. Open powershell with administrator privileges and execute the following.
+```bash
+Stop-Service ssh-agent
+Set-Service -StartupType Disabled ssh-agent
+```
+  - Alternatively, you can set it through the GUI if you prefer.Bring up the start menu and type Services. You’ll see the Services app listed. 
+Once the Services app is open, find the `OpenSSH Authentication Agent` service and set the `Service Status` to `Stop` and the `Startup Type` to `Disabled`.
+
+2. If you are using [PuTTY Pageant](https://www.chiark.greenend.org.uk/~sgtatham/putty/index.html) - stop it.
+
+3. Run `OmniSSHAgent.exe`
+4. Press the `NEW OPEN FILE` button to add a private key file. Or you can use `ssh-add` command or [KeePassXC](https://keepassxc.org/) to add your private key.
 
 
 ## Supported key file formats
