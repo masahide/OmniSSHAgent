@@ -6,11 +6,6 @@
 
 The chaotic windows ssh-agent has been integrated into one program.
 
-### Screen shot
-
-<img src="https://github.com/masahide/OmniSSHAgent/blob/main/doc/screen.png?raw=true" width="500">
-<img src="https://github.com/masahide/OmniSSHAgent/blob/main/doc/screen-setup.png?raw=true" width="500">
-
 ### Chaos Map of SSH-Agent on Windows
 There are several different communication methods for ssh-agent in windows, and it is very complicated to use and configure them.
 The following diagram shows the current communication methods for windows ssh-agent.
@@ -79,3 +74,8 @@ source $HOME/omni-socat/ubuntu-bash.setup.sh
 ### Where is the passphrase for the private key stored?
 
 It's stored in [Windows Credential Manager](https://support.microsoft.com/en-us/windows/accessing-credential-manager-1b5c916a-6a16-889f-8581-fc16e8165ac0).
+
+### Screen shot
+
+<img src="https://github.com/masahide/OmniSSHAgent/blob/main/doc/screen.png?raw=true" width="500">
+<img src="https://github.com/masahide/OmniSSHAgent/blob/main/doc/screen-setup.png?raw=true" width="500">
