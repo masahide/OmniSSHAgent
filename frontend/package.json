@@ -11,7 +11,7 @@
     "smui-theme-dark": "smui-theme compile dist/smui-dark.css -i src/theme/dark"
   },
   "devDependencies": {
-    "@rollup/plugin-commonjs": "^21.0.1",
+    "@rollup/plugin-commonjs": "^21.0.2",
     "@rollup/plugin-image": "^2.1.1",
     "@rollup/plugin-node-resolve": "^13.1.3",
     "@smui/button": "^6.0.0-beta.14",
@@ -19,9 +19,9 @@
     "@zerodevx/svelte-toast": "^0.7.0",
     "autoprefixer": "^10.4.2",
     "path": "^0.12.7",
-    "postcss": "^8.4.6",
+    "postcss": "^8.4.7",
     "postcss-url": "^10.1.3",
-    "rollup": "^2.67.3",
+    "rollup": "^2.68.0",
     "rollup-plugin-copy": "^3.4.0",
     "rollup-plugin-livereload": "^2.0.5",
     "rollup-plugin-postcss": "^4.0.2",
