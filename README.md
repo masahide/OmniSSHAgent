@@ -75,7 +75,7 @@ source $HOME/omni-socat/ubuntu-bash.setup.sh
 
 It's stored in [Windows Credential Manager](https://support.microsoft.com/en-us/windows/accessing-credential-manager-1b5c916a-6a16-889f-8581-fc16e8165ac0).
 
-### Screen shot
+## Screen shot
 
 <img src="https://github.com/masahide/OmniSSHAgent/blob/main/doc/screen.png?raw=true" width="500">
 <img src="https://github.com/masahide/OmniSSHAgent/blob/main/doc/screen-setup.png?raw=true" width="500">
