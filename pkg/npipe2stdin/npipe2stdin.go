@@ -35,8 +35,8 @@ func getFirstErr(ctx context.Context, a, b chan error) error {
 
 func (n *Npipe2Stdin) Proxy(ctx context.Context) error {
 	pipePath := map[bool]string{
-		true:  `\\.\pipe\` + n.Name,
-		false: `\\.\pipe\openssh-ssh-agent`,
+		false: `\\.\pipe\` + n.Name,
+		true:  `\\.\pipe\openssh-ssh-agent`,
 	}[len(n.Name) == 0]
 	conn, err := winio.DialPipe(pipePath, nil)
 	if err != nil {
