@@ -35,7 +35,8 @@ OmniSSHAgent is a program to simplify what used to be a chaotic situation, as sh
 
 ## Usege
 
-1. If you are using Windows native ssh-agent - stop it. Open powershell with administrator privileges and execute the following.
+1. Download `OmniSSHAgent.zip` from https://github.com/masahide/OmniSSHAgent/releases/latest, unzip it, and place it in a folder of your choice.
+2. If you are using Windows native ssh-agent - stop it. Open powershell with administrator privileges and execute the following.
 ```bash
 Stop-Service ssh-agent
 Set-Service -StartupType Disabled ssh-agent
@@ -43,10 +44,10 @@ Set-Service -StartupType Disabled ssh-agent
   - Alternatively, you can set it through the GUI if you prefer.Bring up the start menu and type Services. You’ll see the Services app listed. 
 Once the Services app is open, find the `OpenSSH Authentication Agent` service and set the `Service Status` to `Stop` and the `Startup Type` to `Disabled`.
 
-2. If you are using [PuTTY Pageant](https://www.chiark.greenend.org.uk/~sgtatham/putty/index.html) - stop it.
+3. If you are using [PuTTY Pageant](https://www.chiark.greenend.org.uk/~sgtatham/putty/index.html) - stop it.
 
-3. Run `OmniSSHAgent.exe`
-4. Press the `NEW OPEN FILE` button to add a private key file. Or you can use `ssh-add` command or [KeePassXC](https://keepassxc.org/) to add your private key.
+4. Run `OmniSSHAgent.exe`
+5. Press the `NEW OPEN FILE` button to add a private key file. Or you can use `ssh-add` command or [KeePassXC](https://keepassxc.org/) to add your private key.
 
 ### For use with WSL2
 Setting up socat pipe in ubuntu environment
