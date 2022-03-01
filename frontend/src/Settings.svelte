@@ -136,7 +136,7 @@
                         <div>
                             <FormField style="width: 100%;">
                                 <Textfield
-                                    value={data.UnixSocketPath}
+                                    bind:value={data.UnixSocketPath}
                                     label="Unix domain socket file path(WSL1):"
                                     style="width: 100%;"
                                     helperLine$style="width: 100%;"
@@ -152,7 +152,6 @@
                         <FormField>
                             <Switch
                                 bind:checked={data.CygWinAgent}
-                                disabled
                                 value="Enable Cygwin unix domain socket agent"
                             />
                             <span
@@ -166,8 +165,7 @@
                         <div>
                             <FormField style="width: 100%;">
                                 <Textfield
-                                    disabled
-                                    value={data.CygWinSocketPath}
+                                    bind:value={data.CygWinSocketPath}
                                     label="Cygwin Unix domain socket file path(MSYS2):"
                                     style="width: 100%;"
                                     helperLine$style="width: 100%;"

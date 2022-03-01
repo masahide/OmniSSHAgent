@@ -21,12 +21,12 @@
         },
     };
 
-    const onAddEvent = (message) => {
+    const onLoadKeysEvent = (message) => {
         loadKeys();
         console.log(message);
     };
 
-    window.runtime.EventsOn("Add", onAddEvent);
+    window.runtime.EventsOn("LoadKeysEvent", onLoadKeysEvent);
 
     function handleData(event) {
         //window.runtime.LogDebug(JSON.stringify(event.detail));
