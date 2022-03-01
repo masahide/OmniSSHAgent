@@ -349,11 +349,11 @@ func (k *KeyRing) Add(key agent.AddedKey) error {
 	return k.keyring.Add(key)
 }
 func (k *KeyRing) Remove(key ssh.PublicKey) error {
-	k.notice("Remove", nil)
+	k.notice("Remove", key.Marshal())
 	return k.keyring.Remove(key)
 }
 func (k *KeyRing) RemoveAll() error {
-	k.notice("RemoveAll", nil)
+	k.notice("RemoveAll", "")
 	return k.keyring.RemoveAll()
 }
 func (k *KeyRing) Lock(passphrase []byte) error {

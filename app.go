@@ -7,6 +7,7 @@ import (
 	"log"
 	"path/filepath"
 
+	"github.com/masahide/OmniSSHAgent/pkg/cygwinsocket"
 	"github.com/masahide/OmniSSHAgent/pkg/namedpipe"
 	"github.com/masahide/OmniSSHAgent/pkg/pageant"
 	"github.com/masahide/OmniSSHAgent/pkg/sshkey"
@@ -61,12 +62,18 @@ func (a *App) startup(ctx context.Context) {
 		go ua.RunAgent()
 		log.Println("Start Unix domain socket agent..")
 	}
+	if a.settings.CygWinAgent {
+		ca := &cygwinsocket.CygwinSock{Agent: a.keyRing, Debug: debug, Path: a.settings.CygWinSocketPath}
+		go ca.RunAgent()
+		log.Println("Start Cygwin unix domain socket agent..")
+	}
 }
 
 func (a *App) notice(action string, data interface{}) {
 	switch action {
-	case "Add":
-		runtime.EventsEmit(a.ctx, action)
+	case "Add", "Remove", "RemoveAll":
+		//a.ti.ShowBalloonNotification(action, sshutil.JSONDump(data))
+		runtime.EventsEmit(a.ctx, "LoadKeysEvent")
 	}
 }
 
@@ -151,8 +158,8 @@ func (a *App) Save(s store.SaveData) error {
 	a.settings.SaveData.PageantAgent = s.PageantAgent
 	a.settings.SaveData.NamedPipeAgent = s.NamedPipeAgent
 	a.settings.SaveData.UnixSocketAgent = s.UnixSocketAgent
-	a.settings.SaveData.CygWinAgent = s.CygWinAgent
 	a.settings.SaveData.UnixSocketPath = s.UnixSocketPath
+	a.settings.SaveData.CygWinAgent = s.CygWinAgent
 	a.settings.SaveData.CygWinSocketPath = s.CygWinSocketPath
 	return a.settings.Save()
 }

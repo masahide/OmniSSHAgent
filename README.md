@@ -26,7 +26,7 @@ OmniSSHAgent is a program to simplify what used to be a chaotic situation, as sh
 - Unix domain socket for WSL2
 - NamedPipe on Windows
 - Unix domain socket for WSL1
-- ~~Unix domain socket for MSYS2(Cygwin)~~ ( [#1](https://github.com/masahide/OmniSSHAgent/issues/1) )
+- Unix domain socket for MSYS2(Cygwin) ( [#1](https://github.com/masahide/OmniSSHAgent/issues/1) )
 
 ## Usege
 
@@ -45,7 +45,7 @@ Once the Services app is open, find the `OpenSSH Authentication Agent` service a
 5. Press the `NEW OPEN FILE` button to add a private key file. Or you can use `ssh-add` command or [KeePassXC](https://keepassxc.org/) to add your private key.
 
 ### For use with WSL2
-Setting up socat pipe in ubuntu environment
+Setting up socat pipe in ubuntu environment.
 
 1. Download [ubuntu-bash.setup.sh](hack/ubuntu-bash.setup.sh).sh with the following command
 ```bash
@@ -55,6 +55,36 @@ curl -sL https://raw.githubusercontent.com/masahide/OmniSSHAgent/main/hack/ubunt
 2. Add the following line to `~/.bashrc`
 ```
 source $HOME/omni-socat/ubuntu-bash.setup.sh
+```
+
+### For use with WSL1
+Setting up Unix doman socket in ubuntu environment.
+
+
+1. Check the setting of `Unix domain socket file path(WSL1):` in OmniSSHAgent.
+For example, if you have the following settings.. (`UserName` varies depending on your environment)
+`C:\Users\<UserName>\OmniSSHAgent.sock`
+The WSL1 path will be `/mnt/c/Users/<UserName>/OmniSSHAgent.sock`.
+
+2. Add the following line to `~/.bashrc`
+```bash
+export SSH_AUTH_SOCK=/mnt/c/Users/<UserName>/OmniSSHAgent.sock`
+```
+
+### For use with Cygwin/MSYS2/Git for windows/(GitBash)
+1. Check the setting of `Cygwin Unix domain socket file path(MSYS2):` in OmniSSHAgent.
+For example, if you have the following settings.. (`UserName` varies depending on your environment)
+`C:\Users\<UserName>\OmniSSHCygwin.sock`
+The Cygwin path will be `/mnt/c/Users/<UserName>/OmniSSHCygwin.sock`.
+
+2. On the Windows taskbar, right-click the Windows icon and select System.
+   * In the Settings window, under Related Settings, click Advanced system settings.
+   * On the Advanced tab, click Environment Variables.
+   * `Users variables` Click on `Create new` to create a new environment variable.
+   * Set the following values(`UserName` varies depending on your environment).
+```
+Variable name:  SSH_AUTH_SOCK
+Variable Value: /mnt/c/Users/<UserName>/OmniSSHAgent.sock
 ```
 
 ## Supported key file formats
