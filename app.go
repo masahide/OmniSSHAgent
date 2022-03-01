@@ -40,7 +40,7 @@ func (a *App) startup(ctx context.Context) {
 	a.ti.TrayClickFunc = a.showWindow
 	go a.ti.RunTray()
 
-	debug := true
+	debug := false
 	a.keyRing = sshutil.NewKeyRing(a.settings)
 	if err := a.keyRing.AddKeys(); err != nil {
 		log.Printf("KeyRing.AddKeys err: %s", err)
