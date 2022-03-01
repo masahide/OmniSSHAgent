@@ -28,7 +28,7 @@ OmniSSHAgent is a program to simplify what used to be a chaotic situation, as sh
 - Unix domain socket for WSL1
 - Unix domain socket for MSYS2(Cygwin) ( [#1](https://github.com/masahide/OmniSSHAgent/issues/1) )
 
-## Usege
+## Usage
 
 1. Download `OmniSSHAgent.zip` from https://github.com/masahide/OmniSSHAgent/releases/latest, unzip it, and place it in a folder of your choice.
 2. If you are using Windows native ssh-agent - stop it. Open powershell with administrator privileges and execute the following.
