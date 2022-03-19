@@ -28,7 +28,7 @@ OmniSSHAgent is a program to simplify what used to be a chaotic situation, as sh
 - Unix domain socket for WSL1
 - Unix domain socket for MSYS2(Cygwin) ( [#1](https://github.com/masahide/OmniSSHAgent/issues/1) )
 
-## Usege
+## Usage
 
 1. Download `OmniSSHAgent.zip` from https://github.com/masahide/OmniSSHAgent/releases/latest, unzip it, and place it in a folder of your choice.
 2. If you are using Windows native ssh-agent - stop it. Open powershell with administrator privileges and execute the following.
@@ -73,12 +73,12 @@ export SSH_AUTH_SOCK=/mnt/c/Users/<UserName>/OmniSSHAgent.sock`
 
 ### For use with Cygwin/MSYS2/Git for windows/(GitBash)
 1. Check the setting of `Cygwin Unix domain socket file path(MSYS2):` in OmniSSHAgent.
-For example, if you have the following settings.. (`UserName` varies depending on your environment)
-`C:\Users\<UserName>\OmniSSHCygwin.sock`
-The Cygwin path will be `/mnt/c/Users/<UserName>/OmniSSHCygwin.sock`.
+   * For example, if you have the following settings.(`UserName` varies depending on your environment).
+   * `C:\Users\<UserName>\OmniSSHCygwin.sock`.
+   * The Cygwin path will be `/mnt/c/Users/<UserName>/OmniSSHCygwin.sock`.
 
 2. On the Windows taskbar, right-click the Windows icon and select System.
-   * In the Settings window, under Related Settings, click Advanced system settings.
+In the Settings window, under Related Settings, click Advanced system settings.
    * On the Advanced tab, click Environment Variables.
    * `Users variables` Click on `Create new` to create a new environment variable.
    * Set the following values(`UserName` varies depending on your environment).
