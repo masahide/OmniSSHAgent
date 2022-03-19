@@ -6,6 +6,7 @@ import (
 	"os"
 	"path/filepath"
 
+	"github.com/masahide/OmniSSHAgent/pkg/pageant"
 	"github.com/masahide/OmniSSHAgent/pkg/store"
 	"github.com/masahide/OmniSSHAgent/pkg/store/local"
 	"github.com/wailsapp/wails/v2/pkg/options/mac"
@@ -30,9 +31,23 @@ func getExeName() string {
 	return filepath.Base(os.Args[0])
 }
 
+func checkAlreadyRunning() {
+	b, err := pageant.AlreadyRunning()
+	if err != nil {
+		return
+	}
+	//respLen := binary.BigEndian.Uint32(b[:4])
+	if string(b[4:]) == AppName {
+		os.Exit(0)
+	}
+}
+
 func main() {
 	log.SetFlags(log.LstdFlags | log.Lshortfile)
 	// Create an instance of the app structure
+
+	checkAlreadyRunning()
+
 	app := NewApp()
 	app.settings = store.NewSettings(getExeName(), local.NewLocalCred(AppName))
 	if err := app.settings.Load(); err != nil {

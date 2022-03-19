@@ -330,6 +330,7 @@ func generatePrivateKey(bitSize int) (*rsa.PrivateKey, error) {
 }
 
 func (k *KeyRing) notice(action string, data interface{}) {
+	//log.Printf("%s:%s", action, JSONDump(data))
 	if k.NotifyCallback == nil {
 		return
 	}
@@ -341,11 +342,12 @@ func (k *KeyRing) List() ([]*agent.Key, error) {
 	return k.keyring.List()
 }
 func (k *KeyRing) Sign(key ssh.PublicKey, data []byte) (*ssh.Signature, error) {
+	//k.notice("Sign", map[string]interface{}{"publickey": key.Marshal(), "data": data})
 	k.notice("Sign", nil)
 	return k.keyring.Sign(key, data)
 }
 func (k *KeyRing) Add(key agent.AddedKey) error {
-	k.notice("Add", nil)
+	k.notice("Add", key)
 	return k.keyring.Add(key)
 }
 func (k *KeyRing) Remove(key ssh.PublicKey) error {
@@ -357,9 +359,11 @@ func (k *KeyRing) RemoveAll() error {
 	return k.keyring.RemoveAll()
 }
 func (k *KeyRing) Lock(passphrase []byte) error {
+	k.notice("Lock", "")
 	return k.keyring.Lock(passphrase)
 }
 func (k *KeyRing) Unlock(passphrase []byte) error {
+	k.notice("UnLock", "")
 	return k.keyring.Unlock(passphrase)
 }
 func (k *KeyRing) Signers() ([]ssh.Signer, error) {
@@ -367,10 +371,12 @@ func (k *KeyRing) Signers() ([]ssh.Signer, error) {
 	return k.Signers()
 }
 func (k *KeyRing) SignWithFlags(key ssh.PublicKey, data []byte, flags agent.SignatureFlags) (*ssh.Signature, error) {
+	//k.notice("SignWithFlags", map[string]interface{}{"publickey": key.Marshal(), "data": data, "flags": flags})
 	k.notice("SignWithFlags", nil)
 	return k.keyring.SignWithFlags(key, data, flags)
 }
 func (k *KeyRing) Extension(extensionType string, contents []byte) ([]byte, error) {
+	//k.notice("Extension", map[string]interface{}{"extensionType": extensionType, "contents": contents})
 	k.notice("Extension", nil)
 	return k.keyring.Extension(extensionType, contents)
 }

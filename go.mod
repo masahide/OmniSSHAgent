@@ -11,6 +11,7 @@ require (
 	github.com/google/uuid v1.3.0
 	github.com/kayrus/putty v1.0.4
 	github.com/kelseyhightower/envconfig v1.4.0
+	github.com/mitchellh/go-ps v1.0.0
 	github.com/wailsapp/wails/v2 v2.0.0-beta.32
 	github.com/zalando/go-keyring v0.1.1
 	golang.org/x/crypto v0.0.0-20220131195533-30dcbda58838

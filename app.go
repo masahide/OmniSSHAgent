@@ -46,7 +46,12 @@ func (a *App) startup(ctx context.Context) {
 		log.Printf("KeyRing.AddKeys err: %s", err)
 	}
 	a.keyRing.NotifyCallback = a.notice
-	pa := &pageant.Pageant{ExtendedAgent: a.keyRing, Debug: debug}
+	pa := &pageant.Pageant{
+		ExtendedAgent: a.keyRing,
+		AppName:       AppName,
+		Debug:         debug,
+		CheckFunc:     a.showWindow,
+	}
 	if a.settings.PageantAgent {
 		go pa.RunAgent()
 	}
