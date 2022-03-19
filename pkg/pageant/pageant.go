@@ -19,11 +19,14 @@ import (
 const (
 	className = "Pageant"
 	id        = 0x804e50ba
+	checkID   = 0x02e08fc7
 )
 
 type Pageant struct {
 	agent.ExtendedAgent
-	Debug bool
+	Debug     bool
+	AppName   string
+	CheckFunc func()
 }
 
 type copyDataStruct struct {
@@ -55,6 +58,7 @@ func (a *Pageant) wndProc(hWnd winapi.HWND, message uint32, wParam uintptr, lPar
 		err := a.handleCopyMessage((*copyDataStruct)(unsafe.Pointer(lParam)))
 		if err != nil {
 			log.Print(err)
+			return 0
 		}
 		return 1
 	}
@@ -79,7 +83,13 @@ var fileMapAllAccess = uint32(0xF001F)
 var zeroUint32 = uint32(0)
 
 func (a *Pageant) handleCopyMessage(cdata *copyDataStruct) error {
-	if cdata.dwData != id {
+	checkMode := false
+	switch cdata.dwData {
+	case id:
+		break
+	case checkID:
+		checkMode = true
+	default:
 		return errors.New("ID is different")
 	}
 	if a.Debug {
@@ -108,6 +118,20 @@ func (a *Pageant) handleCopyMessage(cdata *copyDataStruct) error {
 	m = ptr2Array(addr, int(ln)+4) // read ssh-agent message
 
 	out := bytes.Buffer{}
+	if checkMode {
+		if a.CheckFunc != nil {
+			a.CheckFunc()
+		}
+		b := []byte(a.AppName)
+		//out.WriteString(a.AppName)
+		var length [4]byte
+		binary.BigEndian.PutUint32(length[:], uint32(len(b)))
+		out.Write(length[:])
+		out.Write(b)
+		m = ptr2Array(addr, out.Len())
+		copy(m, out.Bytes()[:out.Len()])
+		return nil
+	}
 	err := agent.ServeAgent(a,
 		struct {
 			io.Reader
