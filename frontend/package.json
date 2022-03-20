@@ -18,6 +18,7 @@
     "@smui/card": "^6.0.0-beta.14",
     "@zerodevx/svelte-toast": "^0.7.0",
     "autoprefixer": "^10.4.2",
+    "material-icons": "^1.10.8",
     "path": "^0.12.7",
     "postcss": "^8.4.7",
     "postcss-url": "^10.1.3",
