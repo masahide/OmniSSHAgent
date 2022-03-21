@@ -15,6 +15,7 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/kayrus/putty"
+	"github.com/masahide/OmniSSHAgent/pkg/namedpipe"
 	"github.com/masahide/OmniSSHAgent/pkg/sshkey"
 	"github.com/masahide/OmniSSHAgent/pkg/store"
 	"golang.org/x/crypto/ssh"
@@ -211,6 +212,10 @@ func CheckKeyType(filePath string, passPhrase string) (*sshkey.PrivateKeyFile, e
 // NewKeyRing an Agent that holds keys in memory.
 func NewKeyRing(s *store.Settings) *KeyRing {
 	k := &KeyRing{settings: s}
+	if s.ProxyModeOfNamedPipe {
+		k.keyring = &namedpipe.NamedPipeClient{}
+		return k
+	}
 	a := agent.NewKeyring()
 	if extendedAgent, ok := a.(agent.ExtendedAgent); ok {
 		k.keyring = extendedAgent

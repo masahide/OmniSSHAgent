@@ -166,5 +166,6 @@ func (a *App) Save(s store.SaveData) error {
 	a.settings.SaveData.UnixSocketPath = s.UnixSocketPath
 	a.settings.SaveData.CygWinAgent = s.CygWinAgent
 	a.settings.SaveData.CygWinSocketPath = s.CygWinSocketPath
+	a.settings.SaveData.ProxyModeOfNamedPipe = s.ProxyModeOfNamedPipe
 	return a.settings.Save()
 }
