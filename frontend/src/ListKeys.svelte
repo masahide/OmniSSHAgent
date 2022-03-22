@@ -79,7 +79,9 @@
             })
             .catch((err) => {
                 console.error("KeyList err:" + err);
-                toast.push(err, red);
+                if (!data.ProxyModeOfNamedPipe) {
+                    toast.push(err, red);
+                }
             });
     };
     function getKeyTitle(key) {
@@ -144,6 +146,7 @@
 {#if !data.ProxyModeOfNamedPipe}
     <AddFileDialog on:eventAddPkfile={handleData} />
 {/if}
+<svelte:body on:mouseenter={loadKeys} on:mouseleave={loadKeys} /> 
 
 <style>
     .accordion-container {
