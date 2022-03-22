@@ -87,6 +87,15 @@ Variable name:  SSH_AUTH_SOCK
 Variable Value: /mnt/c/Users/<UserName>/OmniSSHAgent.sock
 ```
 
+### 1Password proxy mode
+
+Mode to use [1Password's ssh-agent function](https://developer.1password.com/docs/ssh/) as a backend as shown in the following figure.
+![1Password-Proxy-mode](https://github.com/masahide/OmniSSHAgent/blob/main/doc/1passwordProxyMode.png?raw=true)
+
+By setting "Enable proxy mode for 1Password key-agent" in the configuration, OmniSSHAgent becomes a Proxy that works with 1Password's ssh-agent as a backend.
+
+When "Enable proxy mode for 1Password key-agent" is enabled, OmniSSHAgent operates as a mere proxy, and therefore, private keys cannot be added.
+
 ## Supported key file formats
 - PuTTY private key file (.ppk) file format
 - OpenSSH format
