@@ -28,6 +28,8 @@ type SaveData struct {
 	CygWinAgent      bool
 	UnixSocketPath   string
 	CygWinSocketPath string
+
+	ProxyModeOfNamedPipe bool
 }
 
 type Settings struct {
@@ -46,6 +48,8 @@ func initSetting() SaveData {
 		CygWinAgent:      true,
 		UnixSocketPath:   filepath.Join(home, "OmniSSHAgent.sock"),
 		CygWinSocketPath: filepath.Join(home, "OmniSSHCygwin.sock"),
+
+		ProxyModeOfNamedPipe: false,
 	}
 }
 

@@ -35,11 +35,13 @@
         CygWinAgent: false,
         UnixSocketPath: "",
         CygWinSocketPath: "",
+        ProxyModeOfNamedPipe: false,
     };
 
     const openDialog = async () => {
         await window.go.main.App.GetSettings()
             .then((savedata) => {
+                console.log(savedata);
                 data = { ...savedata };
                 open = true;
             })
@@ -58,6 +60,16 @@
                 console.error(err);
                 toast.push(err, red);
             });
+    };
+    const namePipeToggle = async (e) => {
+        if (data.ProxyModeOfNamedPipe) {
+            data.ProxyModeOfNamedPipe = false;
+        }
+    };
+    const proxyToggle = async (e) => {
+        if (data.ProxyModeOfNamedPipe) {
+            data.NamedPipeAgent = false;
+        }
     };
 </script>
 
@@ -110,6 +122,7 @@
                         <FormField>
                             <Switch
                                 bind:checked={data.NamedPipeAgent}
+                                on:SMUISwitch:change={namePipeToggle}
                                 value="Enable Named pipe agent"
                             />
                             <span
@@ -177,6 +190,20 @@
                             </FormField>
                         </div>
                     {/if}
+                    <div>
+                        <FormField>
+                            <Switch
+                                bind:checked={data.ProxyModeOfNamedPipe}
+                                on:SMUISwitch:change={proxyToggle}
+                                value="Enable proxy mode for 1Password key-agent"
+                            />
+                            <span
+                                >{data.ProxyModeOfNamedPipe
+                                    ? "Enable proxy mode for 1Password key-agent"
+                                    : "Disable proxy mode for 1Password key-agent"}</span
+                            >
+                        </FormField>
+                    </div>
                 </div>
             </Card>
         </Content>

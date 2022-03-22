@@ -47,7 +47,7 @@ func main() {
 	}
 
 	//	fmt.Println(jsonDump(settings))
-	if settings.NamedPipeAgent {
+	if settings.NamedPipeAgent || settings.ProxyModeOfNamedPipe {
 		proxy("")
 		return
 	}

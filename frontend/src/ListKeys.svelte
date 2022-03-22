@@ -6,6 +6,7 @@
     import { toast } from "@zerodevx/svelte-toast";
     import Accordion, { Panel, Header } from "@smui-extra/accordion";
     import Textfield from "@smui/textfield";
+    import { onMount } from "svelte";
 
     const red = {
         duration: 7000, // duration of progress bar tween to the `next` value
@@ -25,6 +26,19 @@
         loadKeys();
         console.log(message);
     };
+
+    let data = { ProxyModeOfNamedPipe: false };
+    onMount(async () => {
+        await window.go.main.App.GetSettings()
+            .then((savedata) => {
+                console.log(savedata);
+                data = { ...savedata };
+            })
+            .catch((err) => {
+                console.error(err);
+                toast.push(err, red);
+            });
+    });
 
     window.runtime.EventsOn("LoadKeysEvent", onLoadKeysEvent);
 
@@ -65,7 +79,9 @@
             })
             .catch((err) => {
                 console.error("KeyList err:" + err);
-                toast.push(err, red);
+                if (!data.ProxyModeOfNamedPipe) {
+                    toast.push(err, red);
+                }
             });
     };
     function getKeyTitle(key) {
@@ -83,8 +99,7 @@
         {#each keys as key, i}
             <Panel>
                 <Header
-                    >{getKeyTitle(key)}<span
-                        slot="description"
+                    >{getKeyTitle(key)}<span slot="description"
                         ><div class="sha256">{key.publickey.sha256}</div></span
                     ></Header
                 >
@@ -113,20 +128,25 @@
                     <Paper variant="outlined" class="publickey"
                         ><Content>{key.publickey.string}</Content></Paper
                     >
-                    <Button
-                        variant="outlined"
-                        on:click={delKey(key.publickey.sha256)}
-                        ><Icon class="material-icons">delete</Icon><Label
-                            >Delete</Label
-                        ></Button
-                    >
+                    {#if !data.ProxyModeOfNamedPipe}
+                        <Button
+                            variant="outlined"
+                            on:click={delKey(key.publickey.sha256)}
+                            ><Icon class="material-icons">delete</Icon><Label
+                                >Delete</Label
+                            ></Button
+                        >
+                    {/if}
                 </Content>
             </Panel>
         {/each}
     </Accordion>
 </div>
 
-<AddFileDialog on:eventAddPkfile={handleData} />
+{#if !data.ProxyModeOfNamedPipe}
+    <AddFileDialog on:eventAddPkfile={handleData} />
+{/if}
+<svelte:body on:mouseenter={loadKeys} on:mouseleave={loadKeys} /> 
 
 <style>
     .accordion-container {
