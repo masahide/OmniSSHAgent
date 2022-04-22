@@ -45,7 +45,7 @@ Once the Services app is open, find the `OpenSSH Authentication Agent` service a
 5. Press the `NEW OPEN FILE` button to add a private key file. Or you can use `ssh-add` command or [KeePassXC](https://keepassxc.org/) to add your private key.
 
 ### For use with WSL2
-Setting up socat pipe in ubuntu environment.
+## Setting up socat pipe in ubuntu environment.
 
 1. Download [ubuntu-bash.setup.sh](hack/ubuntu-bash.setup.sh) with the following command
 ```bash
@@ -57,7 +57,7 @@ curl -sL https://raw.githubusercontent.com/masahide/OmniSSHAgent/main/hack/ubunt
 source $HOME/omni-socat/ubuntu-bash.setup.sh
 ```
 
-Setting up socat pipe in rocky linux environment.
+## Setting up socat pipe in rocky linux environment.
 
 1. Download [rocky-bash.setup.sh](hack/rocky-bash.setup.sh) with the following command
 ```bash
