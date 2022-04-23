@@ -46,15 +46,28 @@ Once the Services app is open, find the `OpenSSH Authentication Agent` service a
 
 ### For use with WSL2
 #### Setting up socat pipe in ubuntu environment.
+Choose the instructions of your favourite shell below. If your shell isn't listed here you can convert the bash script to your shell syntax and send a PR to add it to the repo.
 
-1. Download [ubuntu-bash.setup.sh](hack/ubuntu-bash.setup.sh) with the following command
+##### Bash
+1. Download [ubuntu-bash.setup.sh](hack/ubuntu-bash.setup.sh) with the following command:
 ```bash
 mkdir -p $HOME/omni-socat
 curl -sL https://raw.githubusercontent.com/masahide/OmniSSHAgent/main/hack/ubuntu-bash.setup.sh -o $HOME/omni-socat/ubuntu-bash.setup.sh
 ```
-2. Add the following line to `~/.bashrc`
-```
+2. Add the following line to `~/.bashrc`:
+```bash
 source $HOME/omni-socat/ubuntu-bash.setup.sh
+```
+
+##### Fish
+1. Download [ubuntu-fish.setup.fish](hack/ubuntu-fish.setup.fish) with the following command:
+```fish
+mkdir -p $HOME/omni-socat
+curl -sL https://raw.githubusercontent.com/masahide/OmniSSHAgent/main/hack/ubuntu-fish.setup.fish -o $HOME/omni-socat/ubuntu-fish.setup.fish
+```
+2. Add the following line to `~/.config/fish/config.fish`:
+```fish
+. $HOME/omni-socat/ubuntu-fish.setup.fish
 ```
 
 #### Setting up socat pipe in rocky linux environment.
@@ -64,8 +77,8 @@ source $HOME/omni-socat/ubuntu-bash.setup.sh
 mkdir -p $HOME/omni-socat
 curl -sL https://raw.githubusercontent.com/masahide/OmniSSHAgent/main/hack/rocky-bash.setup.sh -o $HOME/omni-socat/rocky-bash.setup.sh
 ```
-2. Add the following line to `~/.bashrc`
-```
+2. Add the following line to `~/.bashrc`:
+```bash
 source $HOME/omni-socat/rocky-bash.setup.sh
 ```
 
