@@ -112,7 +112,7 @@ Variable name:  SSH_AUTH_SOCK
 Variable Value: /mnt/c/Users/<UserName>/OmniSSHAgent.sock
 ```
 
-### 1Password proxy mode
+## 1Password proxy mode
 
 Mode to use [1Password's ssh-agent function](https://developer.1password.com/docs/ssh/) as a backend as shown in the following figure.
 ![1Password-Proxy-mode](https://github.com/masahide/OmniSSHAgent/blob/main/doc/1passwordProxyMode.png?raw=true)
@@ -139,7 +139,7 @@ When "Enable proxy mode for 1Password key-agent" is enabled, OmniSSHAgent operat
 
 It's stored in [Windows Credential Manager](https://support.microsoft.com/en-us/windows/accessing-credential-manager-1b5c916a-6a16-889f-8581-fc16e8165ac0).
 
-## Screen shot
+# Screen shot
 
 <img src="https://github.com/masahide/OmniSSHAgent/blob/main/doc/screen.png?raw=true" width="500">
 <img src="https://github.com/masahide/OmniSSHAgent/blob/main/doc/screen-setup.png?raw=true" width="500">
