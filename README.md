@@ -93,7 +93,7 @@ The WSL1 path will be `/mnt/c/Users/<UserName>/OmniSSHAgent.sock`.
 
 2. Add the following line to `~/.bashrc`
 ```bash
-export SSH_AUTH_SOCK=/mnt/c/Users/<UserName>/OmniSSHAgent.sock`
+export SSH_AUTH_SOCK=/mnt/c/Users/<UserName>/OmniSSHAgent.sock
 ```
 
 ### For use with Cygwin/MSYS2/Git for windows/(GitBash)
