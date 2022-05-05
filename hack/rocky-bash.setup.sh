@@ -13,6 +13,7 @@ __get_omnisocat () {
 __get_socat () {
   echo "Install socat"
   sudo dnf -y install socat
+  sudo dnf -y install iproute
 }
 
 
