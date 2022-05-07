@@ -10,6 +10,11 @@ __get_omnisocat () {
   rm omni-socat.zip
 }
 
+__get_ss ()  {
+  echo "Install ss"
+  sudo dnf -y install iproute
+}
+
 __get_socat () {
   echo "Install socat"
   sudo dnf -y install socat
@@ -18,6 +23,7 @@ __get_socat () {
 
 setup_omnisocat () {
   [[ -f $OMNISOCATCMD ]]  || __get_omnisocat
+  [[ -f /usr/sbin/ss ]] || __get_ss
   [[ -f /usr/bin/socat ]] || __get_socat
 
   ss -a | grep -q $SSH_AUTH_SOCK
