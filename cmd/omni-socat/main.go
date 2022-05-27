@@ -18,7 +18,7 @@ import (
 
 type specification struct {
 	Debug   bool
-	LogFile string `default:"omni-scat.log"`
+	LogFile string `default:"omni-socat.log"`
 }
 
 const (
