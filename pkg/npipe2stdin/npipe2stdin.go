@@ -4,13 +4,15 @@ import (
 	"context"
 	"fmt"
 	"io"
+	"log"
 	"os"
 
 	"github.com/Microsoft/go-winio"
 )
 
 type Npipe2Stdin struct {
-	Name string
+	Name  string
+	Debug bool
 }
 
 func pipe(out io.Writer, in io.Reader) chan error {
@@ -38,14 +40,23 @@ func (n *Npipe2Stdin) Proxy(ctx context.Context) error {
 		false: `\\.\pipe\` + n.Name,
 		true:  `\\.\pipe\openssh-ssh-agent`,
 	}[len(n.Name) == 0]
+	if n.Debug {
+		log.Print("Started omni-socat")
+	}
 	conn, err := winio.DialPipe(pipePath, nil)
 	if err != nil {
-		return fmt.Errorf("winio.DialPipe err:%w", err)
+		return fmt.Errorf("winio.DialPipe[%s] err:%w", pipePath, err)
+	}
+	if n.Debug {
+		log.Printf("Opened pipe:[%s]", pipePath)
 	}
 	defer conn.Close()
 	outErrCh := pipe(os.Stdout, conn)
 	inErrCh := pipe(conn, os.Stdin)
 	err = getFirstErr(ctx, outErrCh, inErrCh)
+	if n.Debug {
+		log.Printf("Disconnected. [%v]", err)
+	}
 	if err != nil && err != io.EOF {
 		return fmt.Errorf("pipe err:%w", err)
 	}
