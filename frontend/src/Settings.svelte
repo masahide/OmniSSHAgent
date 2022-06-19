@@ -85,7 +85,7 @@
         <Label slot="label">
             These settings will take effect after a restart.
         </Label>
-        <Button slot="actions">I Know It</Button>
+        <Button slot="actions">Understood</Button>
     </Banner>
     <div class="dialog">
         <Title id="mandatory-title">Settings</Title>
@@ -96,12 +96,12 @@
                         <FormField>
                             <Switch
                                 bind:checked={data.StartHidden}
-                                value="Minimize to system tray at boot time?"
+                                value="Minimize to system tray on launch?"
                             />
                             <span
                                 >{data.StartHidden
-                                    ? "Hide the window and then start up"
-                                    : "Show window at startup"}</span
+                                    ? "Hide the window on launch"
+                                    : "Show window on launch"}</span
                             >
                         </FormField>
                     </div>
