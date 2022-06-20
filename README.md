@@ -44,6 +44,14 @@ Set-Service -StartupType Disabled ssh-agent
 4. Launch `OmniSSHAgent.exe` by double-clicking.
 5. Press the `Open new file` button to add a private key file. Or you can use `ssh-add` command or [KeePassXC](https://keepassxc.org/) to add your private key.
 
+### Registering for launch on boot
+
+OmniSSHAgent does not have an installer, nor registers itself to start upon boot. You'll need to do the following to register it:
+
+- Press the Windows logo key + R, type shell:startup, then click OK. This opens the Startup folder.
+- Copy and paste the shortcut to the OmniSSHAgent.exe from the file location to the Startup
+
+
 ### Using with WSL2
 #### Setting up socat pipe in Ubuntu(WSL2).
 Choose the instructions for your favourite shell below. If your shell isn't listed here you can convert the bash script to your shell syntax and send a PR to add it to the repo.
