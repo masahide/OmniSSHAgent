@@ -4,15 +4,15 @@
 
 ## About
 
-The chaotic windows ssh-agent has been integrated into one program.
+Unifies the chaotic ssh-agent state under Windows.
 
-### Chaos Map of SSH-Agent on Windows
-There are several different communication methods for ssh-agent in windows, and it is very complicated to use and configure them.
-The following diagram shows the current communication methods for windows ssh-agent.
+### The Chaotic State of SSH-Agent on Windows
+There are several different communication methods for ssh-agent in Windows, and it is very complicated to use and configure them.
+The following diagram shows the current communication methods for Windows ssh-agent.
 ![windows-ssh-agent-chaosmap](https://github.com/masahide/OmniSSHAgent/blob/main/doc/windows-ssh-agent-chaosmap.png?raw=true)
 
 
-### Connection diagram of OmniSSHAgent 
+### Connection diagram of OmniSSHAgent
 OmniSSHAgent is a program to simplify what used to be a chaotic situation, as shown in the following figure.
 ![OmniSSHAgentmap](https://github.com/masahide/OmniSSHAgent/blob/main/doc/OmniSSHAgent.png?raw=true)
 
@@ -31,22 +31,22 @@ OmniSSHAgent is a program to simplify what used to be a chaotic situation, as sh
 ## Usage
 
 1. Download `OmniSSHAgent.zip` from https://github.com/masahide/OmniSSHAgent/releases/latest, unzip it, and place it in a folder of your choice.
-2. If you are using Windows native ssh-agent - stop it. Open powershell with administrator privileges and execute the following.
+2. If you are using Windows native ssh-agent, you'll need to stop and disable it. Open powershell with administrator privileges and execute the following commands.
 ```bash
 Stop-Service ssh-agent
 Set-Service -StartupType Disabled ssh-agent
 ```
   - Alternatively, you can set it through the GUI if you prefer.Bring up the start menu and type Services. You’ll see the Services app listed. 
-Once the Services app is open, find the `OpenSSH Authentication Agent` service and set the `Service Status` to `Stop` and the `Startup Type` to `Disabled`.
+  Once the Services app is open, find the `OpenSSH Authentication Agent` service and set the `Service Status` to `Stop` and the `Startup Type` to `Disabled`.
 
 3. If you are using [PuTTY Pageant](https://www.chiark.greenend.org.uk/~sgtatham/putty/index.html) - stop it.
 
-4. Launch `OmniSSHAgent.exe` by double-clicking, etc. 
-5. Press the `NEW OPEN FILE` button to add a private key file. Or you can use `ssh-add` command or [KeePassXC](https://keepassxc.org/) to add your private key.
+4. Launch `OmniSSHAgent.exe` by double-clicking.
+5. Press the `Open new file` button to add a private key file. Or you can use `ssh-add` command or [KeePassXC](https://keepassxc.org/) to add your private key.
 
-### For use with WSL2
-#### Setting up socat pipe in ubuntu environment.
-Choose the instructions of your favourite shell below. If your shell isn't listed here you can convert the bash script to your shell syntax and send a PR to add it to the repo.
+### Using with WSL2
+#### Setting up socat pipe in Ubuntu(WSL2).
+Choose the instructions for your favourite shell below. If your shell isn't listed here you can convert the bash script to your shell syntax and send a PR to add it to the repo.
 
 ##### Bash
 1. Download [ubuntu-bash.setup.sh](hack/ubuntu-bash.setup.sh) with the following command:
@@ -70,7 +70,7 @@ curl -sL https://raw.githubusercontent.com/masahide/OmniSSHAgent/main/hack/ubunt
 . $HOME/omni-socat/ubuntu-fish.setup.fish
 ```
 
-#### Setting up socat pipe in rocky linux environment.
+#### Setting up socat pipe in rocky linux.
 
 1. Download [rocky-bash.setup.sh](hack/rocky-bash.setup.sh) with the following command
 ```bash
@@ -82,7 +82,7 @@ curl -sL https://raw.githubusercontent.com/masahide/OmniSSHAgent/main/hack/rocky
 source $HOME/omni-socat/rocky-bash.setup.sh
 ```
 
-### For use with WSL1
+### Using with WSL1
 Setting up Unix doman socket in ubuntu environment.
 
 
@@ -96,7 +96,7 @@ The WSL1 path will be `/mnt/c/Users/<UserName>/OmniSSHAgent.sock`.
 export SSH_AUTH_SOCK=/mnt/c/Users/<UserName>/OmniSSHAgent.sock
 ```
 
-### For use with Cygwin/MSYS2/Git for windows/(GitBash)
+### Using with Cygwin/MSYS2/Git for windows/(GitBash)
 1. Check the setting of `Cygwin Unix domain socket file path(MSYS2):` in OmniSSHAgent.
    * For example, if you have the following settings.(`UserName` varies depending on your environment).
    * `C:\Users\<UserName>\OmniSSHCygwin.sock`.
@@ -112,9 +112,9 @@ Variable name:  SSH_AUTH_SOCK
 Variable Value: /mnt/c/Users/<UserName>/OmniSSHAgent.sock
 ```
 
-## 1Password proxy mode
+## Using with 1Password proxy mode
 
-Mode to use [1Password's ssh-agent function](https://developer.1password.com/docs/ssh/) as a backend as shown in the following figure.
+This is a mode using [1Password's ssh-agent function](https://developer.1password.com/docs/ssh/) as a backend as shown in the following figure.
 ![1Password-Proxy-mode](https://github.com/masahide/OmniSSHAgent/blob/main/doc/1passwordProxyMode.png?raw=true)
 
 By setting "Enable proxy mode for 1Password key-agent" in the configuration, OmniSSHAgent becomes a Proxy that works with 1Password's ssh-agent as a backend.

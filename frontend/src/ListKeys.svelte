@@ -49,14 +49,14 @@
     const delKey = async (sha256) => {
         await window.go.main.App.DeleteKey(sha256)
             .then(() => {
-                toast.push("Successful delete key", green);
+                toast.push("Successfully deleted key", green);
                 loadKeys();
             })
             .catch((err) => {
                 if (err == "cancel") {
                     return;
                 }
-                console.error("delete key err:" + err);
+                console.error("failed to delete key with error:" + err);
                 toast.push(err, red);
             });
     };

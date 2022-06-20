@@ -55,11 +55,11 @@ func (a *App) startup(ctx context.Context) {
 	if a.settings.PageantAgent {
 		go pa.RunAgent()
 	}
-	log.Println("Start pageant...")
+	log.Println("Starting pageant...")
 	if a.settings.NamedPipeAgent {
 		pipeName := ""
 		na := &namedpipe.NamedPipe{ExtendedAgent: a.keyRing, Debug: debug, Name: pipeName}
-		log.Println("Start NamedPipe agent..")
+		log.Println("Starting NamedPipe agent..")
 		go na.RunAgent()
 	}
 	if a.settings.UnixSocketAgent {
@@ -70,7 +70,7 @@ func (a *App) startup(ctx context.Context) {
 	if a.settings.CygWinAgent {
 		ca := &cygwinsocket.CygwinSock{Agent: a.keyRing, Debug: debug, Path: a.settings.CygWinSocketPath}
 		go ca.RunAgent()
-		log.Println("Start Cygwin unix domain socket agent..")
+		log.Println("Starting Cygwin unix domain socket agent..")
 	}
 }
 
@@ -84,7 +84,7 @@ func (a *App) notice(action string, data interface{}) {
 
 func (a *App) OpenFile() (string, error) {
 	return runtime.OpenFileDialog(a.ctx, runtime.OpenDialogOptions{
-		Title: "Select private key file",
+		Title: "Select a private key file",
 	})
 }
 
@@ -132,7 +132,7 @@ func (a *App) DeleteKey(sha256 string) error {
 	c, err := runtime.MessageDialog(a.ctx, runtime.MessageDialogOptions{
 		Type:    runtime.QuestionDialog,
 		Title:   "Delete?",
-		Message: "Do you really want to delete this?",
+		Message: "Do you really want to delete this key?",
 	})
 	if err != nil {
 		return err
