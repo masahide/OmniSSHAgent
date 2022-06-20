@@ -72,7 +72,7 @@
                 console.debug(pkFile);
                 addButton = true;
                 if (pkFile.encryption && pkFile.passphrase.length > 0) {
-                    toast.push("Successful decryption", green);
+                    toast.push("Decrypted secreet key", green);
                 }
                 if (pkFile.encryption && pkFile.passphrase.length == 0) {
                     addButton = false;
@@ -95,7 +95,7 @@
     aria-describedby="mandatory-content"
 >
     <div class="dialog">
-        <Title id="mandatory-title">Add Private key</Title>
+        <Title id="mandatory-title">Add a Private key</Title>
         <Content id="mandatory-content">
             <Card padded>
                 <div>
@@ -139,7 +139,7 @@
                             />
                             <span
                                 >{pkFile.encryption
-                                    ? "Encrypt with passphrase"
+                                    ? "Encrypted with passphrase"
                                     : "Not encrypted"}</span
                             >
                         </FormField>
@@ -177,7 +177,7 @@
 </Dialog>
 
 <Button on:click={() => (open = true)}>
-    <Label>New open file</Label>
+    <Label>Open new file</Label>
 </Button>
 
 <style>
