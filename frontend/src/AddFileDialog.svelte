@@ -177,7 +177,7 @@
 </Dialog>
 
 <Button on:click={() => (open = true)}>
-    <Label>open new file</Label>
+    <Label>Open new file</Label>
 </Button>
 
 <style>
