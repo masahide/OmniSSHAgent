@@ -1,6 +1,6 @@
 module github.com/masahide/OmniSSHAgent
 
-go 1.17
+go 1.18
 
 require (
 	github.com/Microsoft/go-winio v0.5.1
@@ -46,6 +46,7 @@ require (
 	github.com/valyala/fasthttp v1.28.0 // indirect
 	github.com/valyala/tcplisten v1.0.0 // indirect
 	golang.org/x/net v0.0.0-20211112202133-69e39bad7dc2 // indirect
+	golang.org/x/term v0.0.0-20201126162022-7de9c90e9dd1 // indirect
 )
 
 // replace github.com/wailsapp/wails/v2 v2.0.0-beta.32 => /Users/cf0681/go/pkg/mod/github.com/wailsapp/wails/v2@v2.0.0-beta.32

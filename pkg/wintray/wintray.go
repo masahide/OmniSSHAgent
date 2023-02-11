@@ -1,15 +1,16 @@
 package wintray
 
 import (
-	"crypto/rand"
 	"time"
 	"unsafe"
 
 	"github.com/cwchiu/go-winapi"
+	"github.com/google/uuid"
 	"golang.org/x/sys/windows"
 )
 
 const (
+	ID          = "OmniSSHAgent"
 	TrayIconMsg = winapi.WM_APP + 1
 
 	NIN_BALLOONSHOW      = 0x0402
@@ -17,6 +18,9 @@ const (
 	NIN_BALLOONUSERCLICK = 0x0405
 
 	// NotifyIcon flags
+	NIF_MESSAGE  = 0x00000001
+	NIF_ICON     = 0x00000002
+	NIF_TIP      = 0x00000004
 	NIF_GUID     = 0x00000020
 	NIF_REALTIME = 0x00000040
 	NIF_SHOWTIP  = 0x00000080
@@ -41,9 +45,12 @@ func (ti *TrayIcon) wndProc(hWnd winapi.HWND, msg uint32, wParam, lParam uintptr
 	return 0
 }
 
-func newGUID() winapi.GUID {
-	var buf [16]byte
-	rand.Read(buf[:])
+func guid() winapi.GUID {
+	u := uuid.NewSHA1(
+		uuid.MustParse("4443722f-bc9a-4ba0-8cb3-bfb877b42adf"),
+		[]byte(ID),
+	)
+	buf, _ := u.MarshalBinary()
 	return *(*winapi.GUID)(unsafe.Pointer(&buf[0]))
 }
 
@@ -57,7 +64,7 @@ type TrayIcon struct {
 func (ti *TrayIcon) createMainWindow() winapi.HWND {
 	hInstance := winapi.GetModuleHandle(nil)
 
-	wndClass := windows.StringToUTF16Ptr("MyWindow")
+	wndClass := windows.StringToUTF16Ptr(ID)
 
 	var wcex winapi.WNDCLASSEX
 
@@ -70,7 +77,7 @@ func (ti *TrayIcon) createMainWindow() winapi.HWND {
 	hwnd := winapi.CreateWindowEx(
 		0,
 		wndClass,
-		windows.StringToUTF16Ptr("Tray Icons Example"),
+		windows.StringToUTF16Ptr("Tray Icons "+ID),
 		winapi.WS_OVERLAPPEDWINDOW,
 		winapi.CW_USEDEFAULT,
 		winapi.CW_USEDEFAULT,
@@ -122,7 +129,7 @@ func (ti *TrayIcon) ShowBalloonNotification(title, text string) {
 }
 
 func NewTrayIcon() *TrayIcon {
-	ti := &TrayIcon{guid: newGUID()}
+	ti := &TrayIcon{guid: guid()}
 	return ti
 }
 
