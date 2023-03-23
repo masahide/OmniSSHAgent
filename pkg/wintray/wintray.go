@@ -47,7 +47,7 @@ func (ti *TrayIcon) wndProc(hWnd winapi.HWND, msg uint32, wParam, lParam uintptr
 
 func guid() winapi.GUID {
 	u := uuid.NewSHA1(
-		uuid.MustParse("4443722f-bc9a-4ba0-8cb3-bfb877b42adf"),
+		uuid.MustParse("4443722f-bc9a-4ba0-8cb3-bfb877b42add"),
 		[]byte(ID),
 	)
 	buf, _ := u.MarshalBinary()
@@ -155,7 +155,7 @@ func (ti *TrayIcon) RunTray() {
 		}()
 	*/
 	//winapi.ShowWindow(ti.hwnd, winapi.SW_SHOW)
-	winapi.ShowWindow(ti.hwnd, winapi.SW_HIDE)
+	//winapi.ShowWindow(ti.hwnd, winapi.SW_HIDE)
 	var msg winapi.MSG
 	for {
 		r := winapi.GetMessage(&msg, 0, 0, 0)
