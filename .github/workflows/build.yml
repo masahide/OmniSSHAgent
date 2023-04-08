@@ -1,0 +1,33 @@
+on: [push, pull_request]
+
+env:
+  GO_VERSION: 1.20.x
+  NODE_VERSION: 18.x
+
+name: Test
+jobs:
+  build:
+    runs-on: windows-latest
+    steps:
+    - uses: actions/setup-go@v3
+      with:
+        go-version: ${{ env.GO_VERSION }}
+    - uses: actions/setup-node@v3
+      with:
+        node-version: ${{ env.NODE_VERSION }}
+    - name: Install NSIS
+      run: |
+        iwr -useb get.scoop.sh -outfile 'install.ps1'
+        .\install.ps1 -RunAsAdmin
+        scoop update
+        scoop bucket add extras
+        scoop install nsis
+    - name: Print NSIS version
+      run: makensis -VERSION
+    - uses: actions/checkout@v3
+    - name: Insatll wails
+      run: |
+       go install github.com/wailsapp/wails/v2/cmd/wails@latest
+    - name: build
+      run: |
+       wails build -nsis
