@@ -1,0 +1,20 @@
+
+root = true
+
+[{*.sh,*.yml,*.md,*.json,Dockerfile}]
+indent_style = space
+indent_size = 2
+trim_trailing_whitespace = true
+end_of_line = lf
+insert_final_newline = true
+max_line_length = 132
+
+[Dockerfile]
+indent_style = tab
+
+[{package.json,package-lock.json}]
+max_line_length = off
+
+[*.md]
+max_line_length = 120
+trim_trailing_whitespace = false
