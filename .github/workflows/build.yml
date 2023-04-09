@@ -38,11 +38,17 @@ jobs:
         run: |
           wails build -nsis
           go build -o build/bin/omni-socat.exe ./cmd/omni-socat
+          powershell Compress-Archive -Path build/bin/omni-socat.exe -DestinationPath build/bin/omni-socat.zip
+          rm build/bin/omni-socat.exe
+          powershell Compress-Archive -Path build/bin/OmniSSHAgent.exe -DestinationPath build/bin/OmniSSHAgent.zip
+          rm build/bin/OmniSSHAgent.exe
+
       - uses: actions/upload-artifact@v3
         with:
           name: build-files
           path: |
             ${{ github.workspace }}\build\bin\*.exe
+            ${{ github.workspace }}\build\bin\*.zip
       - name: show info
         run: |
           echo "ls build/bin"  >> $env:GITHUB_STEP_SUMMARY
@@ -61,4 +67,4 @@ jobs:
           fail_on_unmatched_files: true
           generate_release_notes: true
           files: |
-            ./build-files/*.exe
+            ./build-files/*
