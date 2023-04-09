@@ -58,9 +58,7 @@ jobs:
       - uses: softprops/action-gh-release@v1
         with:
           prerelease: true
-          body_path: release.md
           fail_on_unmatched_files: true
           generate_release_notes: true
-          append_body: true
           files: |
             ./build-files/*.exe
