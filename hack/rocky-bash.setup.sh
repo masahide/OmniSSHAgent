@@ -7,6 +7,7 @@ __get_omnisocat () {
       -sLo omni-socat.zip
   sudo dnf -y install unzip
   unzip -o omni-socat.zip -d $(dirname $OMNISOCATCMD)
+  chmod +x $OMNISOCATCMD
   rm omni-socat.zip
 }
 
