@@ -7,6 +7,7 @@ __get_omnisocat () {
   curl https://github.com/masahide/OmniSSHAgent/releases/latest/download/omni-socat.zip \
       -sLo omni-socat.zip
   unzip -o omni-socat.zip -d $(dirname $OMNISOCATCMD)
+  chmod +x $OMNISOCATCMD
   rm omni-socat.zip
 }
 
