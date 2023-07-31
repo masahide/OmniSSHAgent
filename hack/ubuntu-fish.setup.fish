@@ -25,7 +25,8 @@ function setup_omnisocat
   end
   
   # Checks wether $SSH_AUTH_SOCK is a socket or not
-  if test -S $SSH_AUTH_SOCK
+  ss -a | grep -q $SSH_AUTH_SOCK
+  if test -S $SSH_AUTH_SOCK -a $status -eq 0
     return
   end
   

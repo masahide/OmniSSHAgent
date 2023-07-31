@@ -22,7 +22,8 @@ setup_omnisocat () {
   [[ -f /usr/bin/socat ]] || __get_socat
   
   # Checks wether $SSH_AUTH_SOCK is a socket or not
-  [[ -S $SSH_AUTH_SOCK ]]  && return
+    ss -a | grep -q $SSH_AUTH_SOCK
+  [[ -S $SSH_AUTH_SOCK && $? -eq 0 ]]  && return
 
   rm -f $SSH_AUTH_SOCK
   (setsid socat UNIX-LISTEN:$SSH_AUTH_SOCK,fork EXEC:"$OMNISOCATCMD",nofork &) >/dev/null 2>&1
