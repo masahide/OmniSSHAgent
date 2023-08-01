@@ -1,3 +1,5 @@
+#!/bin/fish
+
 set OMNISOCATCMD $HOME/omni-socat/omni-socat.exe
 export SSH_AUTH_SOCK=$HOME/.ssh/agent.sock
 
