@@ -18,6 +18,7 @@ jobs:
         with:
           node-version-file: frontend/.node-version
           cache: "npm"
+          cache-dependency-path: frontend/package-lock.json
       - name: Install packages
         run: npm ci
         working-directory: ./frontend
