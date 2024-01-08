@@ -1,10 +1,13 @@
 {
+  "$schema": "https://wails.io/schemas/config.v2.json",
   "name": "OmniSSHAgent",
   "assetdir": "./frontend/dist",
   "reloaddirs": "./frontend/src/",
   "frontend:build": "npm run build",
   "frontend:install": "npm install",
+  "frontend:dev:watcher": "npm run dev",
   "frontend:dev": "npm run build",
+  "frontend:dev:serverUrl": "auto",
   "wailsjsdir": "./frontend/src",
   "version": "2",
   "Path": "",
