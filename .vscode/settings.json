@@ -7,5 +7,6 @@
   "svelte.plugin.svelte.format.config.svelteStrictMode": true,
   "prettier.requireConfig": true,
   "html.format.enable": true,
-  "go.formatTool": "goimports"
+  "go.formatTool": "goimports",
+  "editor.formatOnSave": true
 }
