@@ -1,0 +1,11 @@
+{
+  "svelte.enable-ts-plugin": true,
+  "svelte-autoimport.autoComplete": true,
+  "editor.defaultFormatter": "esbenp.prettier-vscode",
+  "svelte.plugin.svelte.format.enable": true,
+  "svelte.plugin.svelte.format.config.printWidth": 140,
+  "svelte.plugin.svelte.format.config.svelteStrictMode": true,
+  "prettier.requireConfig": true,
+  "html.format.enable": true,
+  "go.formatTool": "goimports"
+}
