@@ -56,15 +56,15 @@ OmniSSHAgent does not have an installer, nor registers itself to start upon boot
 #### Setting up socat pipe in Ubuntu(WSL2).
 Choose the instructions for your favourite shell below. If your shell isn't listed here you can convert the bash script to your shell syntax and send a PR to add it to the repo.
 
-##### Bash
-1. Download [ubuntu-bash.setup.sh](hack/ubuntu-bash.setup.sh) with the following command:
+##### Bash (and all POSIX-compliant shells)
+1. Download [ubuntu.setup.sh](hack/ubuntu.setup.sh) with the following command:
 ```bash
 mkdir -p $HOME/omni-socat
-curl -sL https://raw.githubusercontent.com/masahide/OmniSSHAgent/main/hack/ubuntu-bash.setup.sh -o $HOME/omni-socat/ubuntu-bash.setup.sh
+curl -sL https://raw.githubusercontent.com/masahide/OmniSSHAgent/main/hack/ubuntu.setup.sh -o $HOME/omni-socat/ubuntu.setup.sh
 ```
-2. Add the following line to `~/.bashrc`:
+2. Add the following line to `~/.bashrc`, `~/.zshrc`, or whatever file is applicable to your shell:
 ```bash
-source $HOME/omni-socat/ubuntu-bash.setup.sh
+source $HOME/omni-socat/ubuntu.setup.sh
 ```
 
 ##### Fish
@@ -80,14 +80,14 @@ curl -sL https://raw.githubusercontent.com/masahide/OmniSSHAgent/main/hack/ubunt
 
 #### Setting up socat pipe in rocky linux.
 
-1. Download [rocky-bash.setup.sh](hack/rocky-bash.setup.sh) with the following command
+1. Download [rocky.setup.sh](hack/rocky.setup.sh) with the following command
 ```bash
 mkdir -p $HOME/omni-socat
-curl -sL https://raw.githubusercontent.com/masahide/OmniSSHAgent/main/hack/rocky-bash.setup.sh -o $HOME/omni-socat/rocky-bash.setup.sh
+curl -sL https://raw.githubusercontent.com/masahide/OmniSSHAgent/main/hack/rocky.setup.sh -o $HOME/omni-socat/rocky.setup.sh
 ```
-2. Add the following line to `~/.bashrc`:
+2. Add the following line to `~/.bashrc`, `~/.zshrc`, or whatever file is applicable to your shell:
 ```bash
-source $HOME/omni-socat/rocky-bash.setup.sh
+source $HOME/omni-socat/rocky.setup.sh
 ```
 
 ### Using with WSL1
