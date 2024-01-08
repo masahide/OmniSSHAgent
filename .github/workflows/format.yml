@@ -14,6 +14,9 @@ jobs:
       contents: write
     steps:
       - uses: actions/checkout@v4
+      - uses: actions/setup-go@v4
+        with:
+          go-version-file: go.mod
       - uses: actions/setup-node@v4
         with:
           node-version-file: frontend/.node-version
@@ -25,6 +28,10 @@ jobs:
       - name: format
         run: npm run format
         working-directory: ./frontend
+      - name: Install goimports
+        run: go install golang.org/x/tools/cmd/goimports@latest
+      - name: Format code
+        run: goimports -w .
       - uses: stefanzweifel/git-auto-commit-action@v5
         with:
           commit_message: Apply php-cs-fixer changes
