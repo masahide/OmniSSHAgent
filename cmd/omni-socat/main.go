@@ -4,11 +4,13 @@ import (
 	"context"
 	"encoding/json"
 	"flag"
+	"fmt"
 	"log"
 	"os"
 	"path/filepath"
 
 	"github.com/kelseyhightower/envconfig"
+	"github.com/masahide/OmniSSHAgent/pkg/namedpipe"
 	"github.com/masahide/OmniSSHAgent/pkg/npipe2stdin"
 	"github.com/masahide/OmniSSHAgent/pkg/store"
 	"github.com/masahide/OmniSSHAgent/pkg/store/local"
@@ -19,6 +21,7 @@ import (
 type specification struct {
 	Debug   bool
 	LogFile string `default:"omni-socat.log"`
+	List    bool   `default:"false"`
 }
 
 const (
@@ -49,6 +52,7 @@ func main() {
 		log.Fatal(err)
 	}
 	flag.BoolVar(&s.Debug, "debug", s.Debug, "Output debug log")
+	flag.BoolVar(&s.List, "l", s.List, "list ssh-agent keys")
 	flag.Parse()
 	if s.Debug {
 		home, err := os.UserHomeDir()
@@ -62,6 +66,10 @@ func main() {
 		log.SetOutput(f)
 		defer f.Close()
 	}
+	if s.List {
+		listMode()
+		return
+	}
 	settings := store.NewSettings(getExeName(), local.NewLocalCred(appName))
 	if err := settings.Load(); err != nil {
 		log.Fatal(err.Error())
@@ -72,6 +80,17 @@ func main() {
 		return
 	}
 	log.Fatal("Failed to connect to OmniSSHAgent. Enable the Named pipe interface for OmniSSHAgent.")
+}
+
+func listMode() {
+	k := &namedpipe.NamedPipeClient{}
+	keys, err := k.List()
+	if err != nil {
+		fmt.Println(err)
+	}
+	for i, k := range keys {
+		fmt.Printf("#%d: %s\n", i+1, k)
+	}
 }
 
 func jsonDump(data interface{}) string {
