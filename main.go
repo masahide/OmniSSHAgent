@@ -6,6 +6,7 @@ import (
 	"os"
 	"path/filepath"
 
+	"github.com/masahide/OmniSSHAgent/pkg/filelog"
 	"github.com/masahide/OmniSSHAgent/pkg/pageant"
 	"github.com/masahide/OmniSSHAgent/pkg/store"
 	"github.com/masahide/OmniSSHAgent/pkg/store/local"
@@ -21,11 +22,11 @@ const (
 	AppName = "OmniSSHAgent"
 )
 
-//go:embed frontend/dist
+//go:embed all:frontend/dist
 var assets embed.FS
 
 //go:embed build/appicon.png
-var icon []byte
+var iconData []byte
 
 func getExeName() string {
 	return filepath.Base(os.Args[0])
@@ -42,8 +43,12 @@ func checkAlreadyRunning() {
 	}
 }
 
+var Logger *filelog.FileLog
+
 func main() {
+	Logger = filelog.New(AppName, 1)
 	log.SetFlags(log.LstdFlags | log.Lshortfile)
+	log.SetOutput(Logger)
 	// Create an instance of the app structure
 
 	checkAlreadyRunning()
@@ -91,12 +96,13 @@ func main() {
 			About: &mac.AboutInfo{
 				Title:   "My Application",
 				Message: "",
-				Icon:    icon,
+				Icon:    iconData,
 			},
 		},
 	})
 
 	if err != nil {
-		log.Fatal(err)
+		log.Print(err)
+		app.Quit()
 	}
 }
