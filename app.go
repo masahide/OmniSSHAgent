@@ -6,7 +6,9 @@ import (
 	"fmt"
 	"log"
 	"path/filepath"
+	"sync"
 
+	"github.com/getlantern/systray"
 	"github.com/masahide/OmniSSHAgent/pkg/cygwinsocket"
 	"github.com/masahide/OmniSSHAgent/pkg/namedpipe"
 	"github.com/masahide/OmniSSHAgent/pkg/pageant"
@@ -14,16 +16,20 @@ import (
 	"github.com/masahide/OmniSSHAgent/pkg/sshutil"
 	"github.com/masahide/OmniSSHAgent/pkg/store"
 	"github.com/masahide/OmniSSHAgent/pkg/unix"
-	"github.com/masahide/OmniSSHAgent/pkg/wintray"
+	"github.com/masahide/OmniSSHAgent/pkg/winopen"
+
+	//"github.com/masahide/OmniSSHAgent/pkg/wintray"
+	"github.com/masahide/OmniSSHAgent/icon"
 	"github.com/wailsapp/wails/v2/pkg/runtime"
 )
 
 // App application struct
 type App struct {
-	ctx      context.Context
-	ti       *wintray.TrayIcon
+	ctx context.Context
+	//ti       *wintray.TrayIcon
 	keyRing  *sshutil.KeyRing
 	settings *store.Settings
+	wg       sync.WaitGroup
 }
 
 // NewApp creates a new App application struct
@@ -31,14 +37,69 @@ func NewApp() *App {
 	return &App{}
 }
 
+func (a *App) systrayOnRedy() {
+	systray.SetIcon(icon.Data)
+	systray.SetTitle(AppName)
+	systray.SetTooltip(AppName)
+	mShowWindow := systray.AddMenuItem("ShowWindow", "Show main window")
+	mQuit := systray.AddMenuItem("Quit", "Quit the whole app")
+	mLogCheckBox := systray.AddMenuItemCheckbox("Debug log", "Enable debug log file output", false)
+	mLogDirOpen := systray.AddMenuItem("Open log directory", "open log directory")
+	mLogDirOpen.Disable()
+	go func() {
+		for {
+			select {
+			case <-mShowWindow.ClickedCh:
+				a.showWindow()
+			case <-mLogCheckBox.ClickedCh:
+				if mLogCheckBox.Checked() {
+					mLogCheckBox.Uncheck()
+					log.Print("Disable debug log")
+					Logger.SetEnable(false)
+					mLogDirOpen.Disable()
+				} else {
+					mLogCheckBox.Check()
+					Logger.SetEnable(true)
+					log.Print("Enable debug log")
+					mLogDirOpen.Enable()
+				}
+			case <-mQuit.ClickedCh:
+				log.Print("Quit was clicked on the menu")
+				a.Quit()
+				return
+			case <-mLogDirOpen.ClickedCh:
+				dir := filepath.Dir(Logger.FilePath)
+				winopen.Open(dir)
+			}
+		}
+	}()
+}
+func (a *App) systrayOnExit() {
+	//log.Print("systrayOnExit")
+	Logger.Close()
+	a.wg.Done()
+}
+
 // startup is called at application startup
 func (a *App) startup(ctx context.Context) {
 	// Perform your setup here
 	a.ctx = ctx
-	a.ti = wintray.NewTrayIcon()
-	a.ti.BalloonClickFunc = a.showWindow
-	a.ti.TrayClickFunc = a.showWindow
-	go a.ti.RunTray()
+	/*
+		a.ti = wintray.NewTrayIcon()
+		a.ti.BalloonClickFunc = a.showWindow
+		a.ti.TrayClickFunc = a.showWindow
+		go a.ti.RunTray()
+	*/
+	a.wg.Add(1)
+	go func() {
+		defer func() {
+			if r := recover(); r != nil {
+				log.Printf("recover:%v", r)
+			}
+			a.Quit()
+		}()
+		systray.Run(a.systrayOnRedy, a.systrayOnExit)
+	}()
 
 	debug := false
 	a.keyRing = sshutil.NewKeyRing(a.settings)
@@ -93,12 +154,6 @@ func (a *App) domReady(ctx context.Context) {
 	// Add your action here
 }
 
-// shutdown is called at application termination
-func (a *App) shutdown(ctx context.Context) {
-	a.ti.Dispose()
-	// Perform your teardown here
-}
-
 // Greet returns a greeting for the given name
 func (a *App) Greet(name string) string {
 	return fmt.Sprintf("Hello %s!", name)
@@ -110,8 +165,15 @@ func (a *App) showWindow() {
 }
 
 func (a *App) Quit() {
-	a.ti.Dispose()
+	log.Print("call a.Quit")
 	runtime.Quit(a.ctx)
+}
+
+// shutdown はruntime.Quitから呼ばれる
+func (a *App) shutdown(ctx context.Context) {
+	log.Print("shutdown")
+	systray.Quit()
+	a.wg.Wait()
 }
 
 func (a *App) AddLocalFile(pk sshkey.PrivateKeyFile) error {
