@@ -8,5 +8,6 @@
   "prettier.requireConfig": true,
   "html.format.enable": true,
   "go.formatTool": "goimports",
-  "editor.formatOnSave": true
+  "editor.formatOnSave": true,
+  "files.eol": "\n"
 }
