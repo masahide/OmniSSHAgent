@@ -75,7 +75,7 @@ func (mux *Multiplexer) readLoop() {
 			log.Println("Error reading payload:", err)
 			return
 		}
-		log.Printf("mux readFull payload type:%d, ch:%d, len:%d ", packetType, channelID, length)
+		//log.Printf("mux readFull payload type:%d, ch:%d, len:%d ", packetType, channelID, length)
 
 		switch packetType {
 		case PacketTypeSend:
@@ -96,8 +96,9 @@ func (mux *Multiplexer) WriteChannel(packet Packet) error {
 	binary.LittleEndian.PutUint32(buf[4:8], packet.ChannelID)
 	binary.LittleEndian.PutUint32(buf[8:HeaderSize], uint32(len(packet.Payload)))
 	copy(buf[HeaderSize:], packet.Payload)
-	n, err := mux.writer.Write(buf)
-	log.Printf("type:%d, ch:%d, len:%d,buf:[%v] n:%d", packet.PacketType, packet.ChannelID, len(packet.Payload), buf, n)
+	_, err := mux.writer.Write(buf)
+	//n, err := mux.writer.Write(buf)
+	//log.Printf("type:%d, ch:%d, len:%d,buf:[%v] n:%d", packet.PacketType, packet.ChannelID, len(packet.Payload), buf, n)
 	return err
 }
 
@@ -136,7 +137,7 @@ func handleConnection(conn net.Conn, mux *Multiplexer, channelID uint32) {
 				log.Println("Error reading from connection:", err)
 				break
 			}
-			log.Printf("handleCoonection read:  channelID:%d byte[%v]", channelID, payload[:n])
+			//log.Printf("handleCoonection read:  channelID:%d byte[%v]", channelID, payload[:n])
 			mux.WriteChannel(Packet{PacketType: packetType, ChannelID: channelID, Payload: payload[:n]})
 			packetType = PacketTypeSend
 		}
@@ -239,7 +240,7 @@ func main() {
 			log.Println("Error accepting connection:", err)
 			continue
 		}
-		log.Printf("accept: %v", conn.LocalAddr())
+		//log.Printf("accept: %v", conn.LocalAddr())
 		go handleConnection(conn, mux, channelID)
 		channelID++
 	}

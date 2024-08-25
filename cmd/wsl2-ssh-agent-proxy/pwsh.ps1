@@ -8,20 +8,20 @@ $WritePacketWorker = {
         [System.IO.StreamWriter] $OutputStreamWriter
     )
 
-    [Console]::Error.WriteLine("WritePacketWorker started.")
+    #[Console]::Error.WriteLine("WritePacketWorker started.")
     while ($true) {
         $null = $MainPacketQueueSignal.WaitOne()
-        [Console]::Error.WriteLine("WritePacketWorker: Signal received, processing packet queue.")
+        #[Console]::Error.WriteLine("WritePacketWorker: Signal received, processing packet queue.")
         $Packet = $null
         if ($PacketQueue.TryDequeue([ref]$Packet)) {
-            [Console]::Error.WriteLine("WritePacketWorker: Packet dequeued. Length: $($Packet.Length), Channel ID: $($Packet.ChannelID), Type: $($Packet.Type).")
+            #[Console]::Error.WriteLine("WritePacketWorker: Packet dequeued. Length: $($Packet.Length), Channel ID: $($Packet.ChannelID), Type: $($Packet.Type).")
             $Header = [BitConverter]::GetBytes($Packet.Type) + 
             [BitConverter]::GetBytes($Packet.ChannelID) + 
             [BitConverter]::GetBytes($Packet.Payload.Length)
             $OutputStreamWriter.BaseStream.Write($Header, 0, $Header.Length)
             $OutputStreamWriter.BaseStream.Write($Packet.Payload, 0, $Packet.Payload.Length)
             $OutputStreamWriter.Flush()
-            [Console]::Error.WriteLine("WritePacketWorker: Packet written to output stream.")
+            #[Console]::Error.WriteLine("WritePacketWorker: Packet written to output stream.")
         }
     }
 }
@@ -43,25 +43,25 @@ $PacketWorkerScript = {
         [void]SendResponse([hashtable]$Packet) {
             $null = $this.WorkerInstance.MainPacketQueue.Enqueue($Packet)
             $null = $this.WorkerInstance.MainPacketQueueSignal.Set()
-            [Console]::Error.WriteLine("PacketWorker: Response sent for Channel ID: $($Packet.ChannelID).")
+            #[Console]::Error.WriteLine("PacketWorker: Response sent for Channel ID: $($Packet.ChannelID).")
         }
         
         [void]StopWorker([Int32]$ChannelID) {
             $this.SendResponse(@{ Type = 2; Payload = [byte[]]::new(0); ChannelID = $ChannelID })
             $null = $this.WorkerInstance.WorkerQueue.Enqueue($this.WorkerInstance)
-            [Console]::Error.WriteLine("PacketWorker: Worker stopped for Channel ID: $ChannelID.")
+            #[Console]::Error.WriteLine("PacketWorker: Worker stopped for Channel ID: $ChannelID.")
         }
 
         [void]Run() {
-            [Console]::Error.WriteLine("PacketWorker started.")
+            #[Console]::Error.WriteLine("PacketWorker started.")
             while ($true) { 
                 $null = $this.WorkerInstance.PacketQueueSignal.WaitOne()
                 $Packet = $null
                 if ($this.WorkerInstance.PacketQueue.TryDequeue([ref]$Packet)) {
-                    [Console]::Error.WriteLine("PacketWorker: Packet received. Channel ID: $($Packet.ChannelID).")
+                    #[Console]::Error.WriteLine("PacketWorker: Packet received. Channel ID: $($Packet.ChannelID).")
                     try {
                         if (!$this.ProcessPacket($Packet)) {
-                            [Console]::Error.WriteLine("PacketWorker: Processing failed for Channel ID: $($Packet.ChannelID). Worker will stop.")
+                            #[Console]::Error.WriteLine("PacketWorker: Processing failed for Channel ID: $($Packet.ChannelID). Worker will stop.")
                             $this.StopWorker($Packet.ChannelID)
                             continue 
                         }
@@ -76,7 +76,7 @@ $PacketWorkerScript = {
         }
 
         [bool]ProcessPacket([hashtable]$Packet) {
-            [Console]::Error.WriteLine("PacketWorker: Processing packet. Type: $($Packet.TypeNum), Channel ID: $($Packet.ChannelID).")
+            #[Console]::Error.WriteLine("PacketWorker: Processing packet. Type: $($Packet.TypeNum), Channel ID: $($Packet.ChannelID).")
             if (0 -eq $Packet.TypeNum) {
                 if ($null -ne $this.NamedPipeStream) {
                     [Console]::Error.WriteLine("PacketWorker: Named pipe connection already closed. Channel ID: $($Packet.ChannelID).")
@@ -87,28 +87,28 @@ $PacketWorkerScript = {
                 $this.NamedPipeStream = [System.IO.Pipes.NamedPipeClientStream]::new(".", "openssh-ssh-agent", [System.IO.Pipes.PipeDirection]::InOut)
                 $this.NamedPipeStream.Connect()
                 $this.WorkerInstance.ChannelID = $Packet.ChannelID
-                [Console]::Error.WriteLine("PacketWorker: Named pipe connection established. Channel ID: $($Packet.ChannelID).")
+                #[Console]::Error.WriteLine("PacketWorker: Named pipe connection established. Channel ID: $($Packet.ChannelID).")
             }
             elseif (2 -eq $Packet.TypeNum) {
                 if ($null -eq $this.NamedPipeStream) {
-                    [Console]::Error.WriteLine("PacketWorker: No active named pipe connection to close. Channel ID: $($Packet.ChannelID).")
+                    #[Console]::Error.WriteLine("PacketWorker: No active named pipe connection to close. Channel ID: $($Packet.ChannelID).")
                     return $false
                 }
                 $this.NamedPipeStream.Close()
                 $this.NamedPipeStream = $null
-                [Console]::Error.WriteLine("PacketWorker: Named pipe connection closed. Channel ID: $($Packet.ChannelID).")
+                #[Console]::Error.WriteLine("PacketWorker: Named pipe connection closed. Channel ID: $($Packet.ChannelID).")
                 return $false
             }
             $this.NamedPipeStream.Write($Packet.Payload, 0, $Packet.Payload.Length)
             $this.NamedPipeStream.Flush()
-            [Console]::Error.WriteLine("PacketWorker: Data written to named pipe. Channel ID: $($Packet.ChannelID).")
+            #[Console]::Error.WriteLine("PacketWorker: Data written to named pipe. Channel ID: $($Packet.ChannelID).")
             
             $Payload = [byte[]]::new(10240)
             $n = $this.NamedPipeStream.Read($Payload, 0, $Payload.Length)
             if ($n -gt 0) {
                 $Payload = $Payload[0..($n - 1)]
                 $this.SendResponse(@{ Type = 1; Payload = $Payload; ChannelID = $Packet.ChannelID })
-                [Console]::Error.WriteLine("PacketWorker: Response read from named pipe and sent. Channel ID: $($Packet.ChannelID).")
+                #[Console]::Error.WriteLine("PacketWorker: Response read from named pipe and sent. Channel ID: $($Packet.ChannelID).")
             }
             return $true
         }
@@ -139,13 +139,13 @@ class PacketReader {
     }
     
     [Hashtable] ReadPacket ([System.IO.Stream] $InputStreamReader) {
-        [Console]::Error.WriteLine("PacketReader: Reading packet from input stream.")
+        #[Console]::Error.WriteLine("PacketReader: Reading packet from input stream.")
         $Header = [byte[]]::new(12)
         $n = $InputStreamReader.Read($Header, 0, $Header.Length)
         if ($n -eq 0) {
             return @{Error = "PacketReader: Failed to read header (length zero)." }
         }
-        [Console]::Error.WriteLine("PacketReader: Header read successfully. Length: $n.")
+        #[Console]::Error.WriteLine("PacketReader: Header read successfully. Length: $n.")
         $Res = @{
             TypeNum   = [BitConverter]::ToInt32($Header, 0)
             ChannelID = [BitConverter]::ToInt32($Header, 4)
@@ -157,20 +157,20 @@ class PacketReader {
         if ($n -ne $Res.Length) {
             $Res = @{Error = "PacketReader: Incomplete payload read. Expected: $($Res.Length), Actual: $n. Channel ID: $($Res.ChannelID), Type: $($Res.TypeNum)." }
         }
-        [Console]::Error.WriteLine("PacketReader: Packet read completed. Channel ID: $($Res.ChannelID), Type: $($Res.TypeNum), Length: $($Res.Length).")
+        #[Console]::Error.WriteLine("PacketReader: Packet read completed. Channel ID: $($Res.ChannelID), Type: $($Res.TypeNum), Length: $($Res.Length).")
         return $Res
     }
 
     [void] Run() {
         [Console]::Error.WriteLine("PacketReader started.")
         while ($true) {
-            [Console]::Error.WriteLine("PacketReader: Waiting for packets.")
+            #[Console]::Error.WriteLine("PacketReader: Waiting for packets.")
             $Packet = $this.ReadPacket($this.InputStreamReader)
             if ($null -ne $Packet.Error) {
                 [Console]::Error.WriteLine($Packet.Error)
                 continue
             }
-            [Console]::Error.WriteLine("PacketReader: Packet received. Type: $($Packet.TypeNum), Channel ID: $($Packet.ChannelID), Length: $($Packet.Length).")
+            #[Console]::Error.WriteLine("PacketReader: Packet received. Type: $($Packet.TypeNum), Channel ID: $($Packet.ChannelID), Length: $($Packet.Length).")
             $WorkerInstance = $null
             if ($this.Channels.ContainsKey($Packet.ChannelID)) {
                 $WorkerInstance = $this.Channels[$Packet.ChannelID]
@@ -179,7 +179,7 @@ class PacketReader {
                 if ($this.WorkerQueue.TryDequeue([ref]$WorkerInstance)) {
                     $this.Channels.Remove($WorkerInstance.ChannelID)
                     $WorkerInstance.ChannelID = $Packet.ChannelID
-                    [Console]::Error.WriteLine("PacketReader: Reusing existing worker for Channel ID: $($Packet.ChannelID).")
+                    #[Console]::Error.WriteLine("PacketReader: Reusing existing worker for Channel ID: $($Packet.ChannelID).")
                 }
                 else {
                     $WorkerInstance = @{
@@ -192,13 +192,13 @@ class PacketReader {
                     }
                     $null = [PowerShell]::Create().AddScript($this.PacketWorkerScript).
                     AddArgument($WorkerInstance).BeginInvoke()
-                    [Console]::Error.WriteLine("PacketReader: New worker initialized for Channel ID: $($Packet.ChannelID).")
+                    #[Console]::Error.WriteLine("PacketReader: New worker initialized for Channel ID: $($Packet.ChannelID).")
                 }
                 $this.Channels[$WorkerInstance.ChannelID] = $WorkerInstance
             }
             $WorkerInstance.PacketQueue.Enqueue($Packet)
             $WorkerInstance.PacketQueueSignal.Set()
-            [Console]::Error.WriteLine("PacketReader: Packet dispatched to worker. Channel ID: $($Packet.ChannelID).")
+            #[Console]::Error.WriteLine("PacketReader: Packet dispatched to worker. Channel ID: $($Packet.ChannelID).")
         }
     }
 }
@@ -213,7 +213,6 @@ function Main {
     $MainPacketQueue = [System.Collections.Concurrent.ConcurrentQueue[Hashtable]]::new()
     $MainPacketQueueSignal = [System.Threading.AutoResetEvent]::new($false)
     $InputStreamReader = [Console]::OpenStandardInput()
-    [Console]::Error.WriteLine("Main: Initialized input/output streams.")
 
     $null = [powershell]::Create().AddScript($WritePacketWorker).
     AddArgument($MainPacketQueue).AddArgument($MainPacketQueueSignal).AddArgument($OutputStreamWriter).
