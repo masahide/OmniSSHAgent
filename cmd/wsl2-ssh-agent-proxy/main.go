@@ -223,12 +223,16 @@ func main() {
 
 	socketPath := os.Getenv("SSH_AUTH_SOCK")
 	if len(socketPath) == 0 {
-		log.Fatal("$SSH_AUTH_SOCK is not set")
+		log.Fatal("env SSH_AUTH_SOCK is not set")
 	}
+	log.Printf("get env SSH_AUTH_SOCK:%s", socketPath)
 	if _, err := os.Stat(socketPath); err == nil {
-		os.Remove(socketPath)
+		err := os.Remove(socketPath)
+		if err != nil {
+			log.Fatal("remove old socket err:", err)
+		}
 	}
-
+	log.Printf("listen socket:%s", socketPath)
 	listener, err := net.Listen("unix", socketPath)
 	if err != nil {
 		log.Println("Error creating Unix domain socket:", err)
