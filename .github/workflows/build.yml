@@ -68,7 +68,7 @@ jobs:
         with:
           name: build-files
           path: |
-            ${{ github.workspace }}\build\bin\*.gz
+            ${{ github.workspace }}/build/bin/*.gz
       - name: show info
         run: |
           echo "ls build/bin"  >> $env:GITHUB_STEP_SUMMARY
