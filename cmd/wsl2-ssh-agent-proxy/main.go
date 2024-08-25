@@ -3,29 +3,40 @@ package main
 import (
 	"bufio"
 	"bytes"
+	"context"
 	_ "embed"
 	"encoding/binary"
+	"errors"
+	"flag"
 	"io"
 	"log"
 	"net"
 	"os"
 	"os/exec"
+	"os/signal"
 	"path/filepath"
 	"strings"
 	"sync"
+	"syscall"
 )
 
 //go:embed pwsh.ps1
 var pwshScript string
+var debug bool
 
 const (
-	DEBUG      = false
 	HeaderSize = 12 // 4 bytes for channel ID, 4 bytes for message length
 
 	PacketTypeConnectSend = uint32(0)
 	PacketTypeSend        = uint32(1)
 	PacketTypeClose       = uint32(2)
 )
+
+type Packet struct {
+	PacketType uint32
+	ChannelID  uint32
+	Payload    []byte
+}
 
 type Multiplexer struct {
 	writer     io.Writer
@@ -40,30 +51,31 @@ func NewMultiplexer(writer io.Writer, reader io.Reader) *Multiplexer {
 		reader:   bufio.NewReader(reader),
 		channels: make(map[uint32]chan []byte),
 	}
-	go mux.readLoop()
+	//go mux.readLoop()
 	return mux
 }
 
-type Packet struct {
-	PacketType uint32
-	ChannelID  uint32
-	Payload    []byte
-}
-
-func (mux *Multiplexer) readLoop() {
-	if DEBUG {
-		for {
-			buf := make([]byte, 4096)
-			n, err := mux.reader.Read(buf)
-			log.Printf("debug read buf:[%s] n:%d,err=%v", buf, n, err)
-		}
-	}
+func (mux *Multiplexer) readLoop(ctx context.Context) error {
 	for {
+		select {
+		case <-ctx.Done():
+			return ctx.Err()
+		default:
+		}
 		header := make([]byte, HeaderSize)
 		_, err := io.ReadFull(mux.reader, header)
 		if err != nil {
+			if errors.Is(err, io.EOF) {
+				if debug {
+					log.Println("Connection closed")
+				}
+				return err
+			}
 			log.Println("Error reading header:", err)
-			return
+			return err
+		}
+		if debug {
+			log.Printf("mux readFull header:[%v]", header)
 		}
 
 		packetType := binary.LittleEndian.Uint32(header[:4])
@@ -73,19 +85,27 @@ func (mux *Multiplexer) readLoop() {
 		_, err = io.ReadFull(mux.reader, payload)
 		if err != nil {
 			log.Println("Error reading payload:", err)
-			return
+			return err
 		}
-		//log.Printf("mux readFull payload type:%d, ch:%d, len:%d ", packetType, channelID, length)
+		if debug {
+			log.Printf("mux readFull payload type:%d, ch:%d, len:%d ", packetType, channelID, length)
+		}
 
 		switch packetType {
 		case PacketTypeSend:
 			mux.channelsMu.Lock()
-			if ch, ok := mux.channels[channelID]; ok {
-				ch <- payload
-			}
+			ch, ok := mux.channels[channelID]
 			mux.channelsMu.Unlock()
+			if ok {
+				ch <- payload
+			} else {
+				log.Printf("mux readFull error: channel %d not found", channelID)
+			}
 		case PacketTypeClose:
 			mux.CloseChannel(channelID)
+			if debug {
+				log.Printf("mux readFull close channel %d", channelID)
+			}
 		}
 	}
 }
@@ -121,49 +141,145 @@ func (mux *Multiplexer) CloseChannel(channelID uint32) {
 	}
 }
 
-func handleConnection(conn net.Conn, mux *Multiplexer, channelID uint32) {
+func (ps *pwshIOStream) handleConnection(ctx context.Context, conn net.Conn, channelID uint32) {
 	defer conn.Close()
-	ch := mux.OpenChannel(channelID)
+	ch := ps.OpenChannel(channelID)
 	go func() {
-		//reader := bufio.NewReader(conn)
+		defer func() {
+			ps.WriteChannel(Packet{PacketType: PacketTypeClose, ChannelID: channelID, Payload: []byte{}})
+			ps.CloseChannel(channelID)
+		}()
 		packetType := PacketTypeConnectSend
 		for {
 			payload := make([]byte, 4096)
 			n, err := conn.Read(payload)
 			if err != nil {
 				if err == io.EOF {
+					if debug {
+						log.Printf("DomainSocket.read ch:%d io.EOF", channelID)
+					}
 					break
 				}
 				log.Println("Error reading from connection:", err)
 				break
 			}
-			//log.Printf("handleCoonection read:  channelID:%d byte[%v]", channelID, payload[:n])
-			mux.WriteChannel(Packet{PacketType: packetType, ChannelID: channelID, Payload: payload[:n]})
+			ps.WriteChannel(Packet{PacketType: packetType, ChannelID: channelID, Payload: payload[:n]})
 			packetType = PacketTypeSend
+			select {
+			case <-ctx.Done():
+				return
+			default:
+			}
 		}
-		mux.WriteChannel(Packet{PacketType: PacketTypeClose, ChannelID: channelID, Payload: []byte{}})
-		mux.CloseChannel(channelID)
 	}()
 
-	writer := bufio.NewWriter(conn)
+	domainSocketWriter := bufio.NewWriter(conn)
 	for msg := range ch {
-		_, err := writer.Write(msg)
+		_, err := domainSocketWriter.Write(msg)
 		if err != nil {
 			log.Println("Error writing to connection:", err)
 			break
 		}
-		writer.Flush()
+		domainSocketWriter.Flush()
+		if debug {
+			log.Printf("DomainSocketWriter.Write ch:%d len:%d", channelID, len(msg))
+		}
+	}
+	if debug {
+		log.Printf("Close DomainSocket ch:%d", channelID)
 	}
 }
+
+type pwshIOStream struct {
+	*Multiplexer
+	exePath string
+
+	cmd    *exec.Cmd
+	out    io.ReadCloser
+	in     io.WriteCloser
+	cancel context.CancelFunc
+}
+
+func (ps *pwshIOStream) setCancel(cancel context.CancelFunc) {
+	ps.cancel = cancel
+}
+
+func NewPwshIOStream(exePath string) *pwshIOStream {
+	return &pwshIOStream{
+		exePath: exePath,
+	}
+}
+
+/*
+func (ps *pwshIOStream) readLoop() error {
+	return ps.Multiplexer.readLoop()
+}
+*/
+
+func (ps *pwshIOStream) sigStopWorker() {
+	// Capture kill signals
+	sigChan := make(chan os.Signal, 1)
+	signal.Notify(sigChan, syscall.SIGINT, syscall.SIGTERM)
+	sig := <-sigChan
+	log.Printf("Received signal: %s. Shutting down PowerShell process...", sig)
+	ps.killPwsh()
+	os.Exit(0)
+}
+
+func (ps *pwshIOStream) startPowerShellProces(ctx context.Context) {
+	log.Println("start PowerShell process...")
+	ps.cmd = exec.Command(ps.exePath, "-NoProfile", "-Command", "-")
+
+	defer ps.cancel()
+	var err error
+	ps.in, err = ps.cmd.StdinPipe()
+	if err != nil {
+		log.Printf("cmd.StdinPipe() err:%s", err)
+		return
+	}
+	ps.out, err = ps.cmd.StdoutPipe()
+	if err != nil {
+		log.Printf("cmd.StdoutPipe() err:%s", err)
+		return
+	}
+	ps.cmd.Stderr = os.Stderr
+
+	if err := ps.cmd.Start(); err != nil {
+		log.Printf("cmd.Start() err:%s", err)
+		return
+	}
+	log.Printf("Started PowerShell process with PID: %d", ps.cmd.Process.Pid)
+
+	if debug {
+		pwshScript = uncommentWriteLines(pwshScript)
+	}
+	io.WriteString(ps.in, pwshScript)
+	ps.Multiplexer = NewMultiplexer(ps.in, ps.out)
+	checkStartAgent(ps.out)
+	if err = ps.readLoop(ctx); err != nil {
+		log.Printf("readLoop() err:%s", err)
+		return
+	}
+}
+
+func (ps *pwshIOStream) killPwsh() {
+	if err := ps.cmd.Process.Signal(syscall.SIGTERM); err != nil {
+		log.Printf("send signal err:%s", err)
+	}
+	if ps.in != nil {
+		ps.in.Close()
+	}
+	if ps.out != nil {
+		ps.out.Close()
+	}
+	log.Printf("PowerShell process exited")
+}
+
 func checkStartAgent(r io.Reader) {
 	buf := make([]byte, 1024)
 	n, err := r.Read(buf)
 	if err != nil {
 		log.Printf("read err: %s", err)
-		return
-	}
-	if DEBUG {
-		log.Printf("debug read: %s", string(buf[:n]))
 		return
 	}
 	if !bytes.Equal(buf[:n], []byte("startAgent")) {
@@ -185,6 +301,9 @@ func getSystem32Path() string {
 }
 
 func main() {
+	log.SetFlags(log.LstdFlags | log.Lshortfile)
+	flag.BoolVar(&debug, "debug", false, "debug mode")
+	flag.Parse()
 	exePath := getSystem32Path()
 	if len(exePath) > 0 {
 		exePath = filepath.Join(exePath, "WindowsPowerShell/v1.0/powershell.exe")
@@ -193,34 +312,6 @@ func main() {
 	if err != nil {
 		exePath = ("powershell.exe")
 	}
-	cmd := exec.Command(exePath, "-NoProfile", "-Command", "-")
-
-	psIn, err := cmd.StdinPipe()
-	if err != nil {
-		log.Println("Error creating stdin pipe:", err)
-		return
-	}
-	psOut, err := cmd.StdoutPipe()
-	if err != nil {
-		log.Println("Error creating stdout pipe:", err)
-		return
-	}
-	cmd.Stderr = os.Stderr
-
-	if err := cmd.Start(); err != nil {
-		log.Println("Error starting command:", err)
-		return
-	}
-
-	io.WriteString(psIn, pwshScript)
-
-	log.SetFlags(log.LstdFlags | log.Lshortfile)
-	log.Printf("writeString powershellScript")
-
-	checkStartAgent(psOut)
-
-	mux := NewMultiplexer(psIn, psOut)
-
 	socketPath := os.Getenv("SSH_AUTH_SOCK")
 	if len(socketPath) == 0 {
 		log.Fatal("env SSH_AUTH_SOCK is not set")
@@ -232,23 +323,59 @@ func main() {
 			log.Fatal("remove old socket err:", err)
 		}
 	}
-	log.Printf("listen socket:%s", socketPath)
+
+	ps := NewPwshIOStream(exePath)
+	defer ps.killPwsh()
+	go ps.sigStopWorker()
 	listener, err := net.Listen("unix", socketPath)
 	if err != nil {
 		log.Println("Error creating Unix domain socket:", err)
 		return
 	}
 	defer listener.Close()
+	for {
+		// Start PowerShell process
+		ctx, cancel := context.WithCancel(context.Background())
+		ps.setCancel(cancel)
+		go ps.startPowerShellProces(ctx)
+		log.Printf("listen socket:%s", socketPath)
+		ps.listenLoop(ctx, listener)
+		cancel()
+	}
+}
 
+func (ps *pwshIOStream) listenLoop(ctx context.Context, listener net.Listener) error {
 	var channelID uint32 = 1
 	for {
 		conn, err := listener.Accept()
 		if err != nil {
+			if errors.Is(err, net.ErrClosed) {
+				log.Println("Listener has been closed.")
+				return err
+			}
 			log.Println("Error accepting connection:", err)
 			continue
 		}
-		//log.Printf("accept: %v", conn.LocalAddr())
-		go handleConnection(conn, mux, channelID)
+		if debug {
+			log.Printf("domainSocket:%v accept ch:%d", conn.LocalAddr(), channelID)
+		}
+		go ps.handleConnection(ctx, conn, channelID)
 		channelID++
+		select {
+		case <-ctx.Done():
+			return ctx.Err()
+		default:
+		}
 	}
+}
+
+func uncommentWriteLines(script string) string {
+	lines := strings.Split(script, "\n")
+	for i, line := range lines {
+		trimmedLine := strings.TrimSpace(line)
+		if strings.HasPrefix(trimmedLine, "# [Console]::Error.WriteLine(") {
+			lines[i] = strings.Replace(line, "# ", "", 1)
+		}
+	}
+	return strings.Join(lines, "\n")
 }

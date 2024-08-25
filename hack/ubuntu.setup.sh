@@ -1,41 +1,40 @@
 #!/bin/sh
 
-set -ex
-NAME=wsl2-ssh-agent-proxy
-SSH_AUTH_SOCK="${HOME}/.ssh/${NAME}/${NAME}.sock"
-PROXYCMD_DIR="${HOME}/${NAME}"
-CMD="${PROXYCMD_DIR}/${NAME}"
+OMNISOCATCMD="$HOME/omni-socat/omni-socat.exe"
+export SSH_AUTH_SOCK="$HOME/.ssh/agent.sock"
 
-RELEASE_NAME=$1
-REPO_URL=https://github.com/masahide/OmniSSHAgent
-if [ -z "${RELEASE_NAME}" ]; then
-  VER_PATH="releases/latest"
-else
-  VER_PATH="download/${RELEASE_NAME}"
-fi
-
-__get_proxy() {
-  echo "Downloading ${NAME}.gz"
-  mkdir -p "${PROXYCMD_DIR}"
-  curl "${REPO_URL}/releases/${VER_PATH}/${NAME}.gz" -sL | gunzip >"${CMD}"
-  chmod +x "${CMD}"
+__get_omnisocat() {
+  echo "Downloading omni-socat.exe"
+  sudo apt -y install unzip
+  curl https://github.com/masahide/OmniSSHAgent/releases/latest/download/omni-socat.zip \
+    -sLo omni-socat.zip
+  unzip -o omni-socat.zip -d "$(dirname "$OMNISOCATCMD")"
+  chmod +x "$OMNISOCATCMD"
+  rm -f omni-socat.zip
 }
 
-setup_proxy() {
-  [ -f "${CMD}" ] || __get_proxy
+__get_socat() {
+  echo "Installing socat"
+  sudo apt -y install socat
+}
+
+setup_omnisocat() {
+  [ -f "$OMNISOCATCMD" ] || __get_omnisocat
+  command -v socat > /dev/null 2>&1 || __get_socat
 
   # Checks wether $SSH_AUTH_SOCK is a socket or not
-  (ps aux | grep "${CMD}" | grep -qv "grep") && [ -S "${SSH_AUTH_SOCK}" ] && return
+  (ss -a | grep -q "$SSH_AUTH_SOCK") && [ -S "$SSH_AUTH_SOCK" ] && return
 
   # Create directory for the socket, if it is missing
-  SSH_AUTH_SOCK_DIR="$(dirname "${SSH_AUTH_SOCK}")"
-  mkdir -p "${SSH_AUTH_SOCK_DIR}"
-  # Applying best-practice permissions if we are creating ${HOME}/.ssh
-  if [ "${SSH_AUTH_SOCK_DIR}" = "${HOME}/.ssh" ]; then
-    chmod 700 "${SSH_AUTH_SOCK_DIR}"
+  SSH_AUTH_SOCK_DIR="$(dirname "$SSH_AUTH_SOCK")"
+  mkdir -p "$SSH_AUTH_SOCK_DIR"
+  # Applying best-practice permissions if we are creating $HOME/.ssh
+  if [ "$SSH_AUTH_SOCK_DIR" = "$HOME/.ssh" ]; then
+    chmod 700 "$SSH_AUTH_SOCK_DIR"
   fi
 
-  ${CMD} >>"${PROXYCMD_DIR}/${NAME}.log" 2>&1 &
+  rm -f "$SSH_AUTH_SOCK"
+  (setsid socat UNIX-LISTEN:"$SSH_AUTH_SOCK",fork EXEC:"$OMNISOCATCMD",nofork &) > /dev/null 2>&1
 }
 
-setup_proxy
+setup_omnisocat
