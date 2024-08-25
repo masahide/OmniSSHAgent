@@ -221,7 +221,10 @@ func main() {
 
 	mux := NewMultiplexer(psIn, psOut)
 
-	socketPath := "/tmp/unix_domain_socket"
+	socketPath := os.Getenv("SSH_AUTH_SOCK")
+	if len(socketPath) == 0 {
+		log.Fatal("$SSH_AUTH_SOCK is not set")
+	}
 	if _, err := os.Stat(socketPath); err == nil {
 		os.Remove(socketPath)
 	}
