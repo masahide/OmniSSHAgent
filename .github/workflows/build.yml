@@ -63,8 +63,7 @@ jobs:
       - name: build
         run: |
           go build -o build/bin/wsl2-ssh-agent-proxy ./cmd/wsl2-ssh-agent-proxy
-          gzip build/bin/wsl2-ssh-agent-proxy build/bin/wsl2-ssh-agent-proxy.gz
-          rm build/bin/wsl2-ssh-agent-proxy
+          gzip build/bin/wsl2-ssh-agent-proxy
       - uses: actions/upload-artifact@v4
         with:
           name: build-files
