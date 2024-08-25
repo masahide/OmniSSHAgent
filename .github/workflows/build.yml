@@ -62,7 +62,7 @@ jobs:
           cache: true
       - name: build
         run: |
-          go build -o build/bin/wsl2-ssh-agent-proxy ./cmd/wsl2-ssh-agent-proxy
+          CGO_ENABLED=0 go build -o build/bin/wsl2-ssh-agent-proxy ./cmd/wsl2-ssh-agent-proxy
           gzip build/bin/wsl2-ssh-agent-proxy
       - uses: actions/upload-artifact@v4
         with:

@@ -1,5 +1,6 @@
 #!/bin/sh
 
+set -ex
 NAME=wsl2-ssh-agent-proxy
 SSH_AUTH_SOCK="${HOME}/.ssh/${NAME}/${NAME}.sock"
 PROXYCMD_DIR="${HOME}/${NAME}"
@@ -16,7 +17,7 @@ fi
 __get_proxy() {
   echo "Downloading ${NAME}.gz"
   mkdir -p "${PROXYCMD_DIR}"
-  curl "${REPO_URL}/releases/${VER_PATH}/${NAME}.gz" -sL | ungzip >"${CMD}"
+  curl "${REPO_URL}/releases/${VER_PATH}/${NAME}.gz" -sL | gunzip >"${CMD}"
   chmod +x "${CMD}"
 }
 
