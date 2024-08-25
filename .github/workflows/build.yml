@@ -44,7 +44,7 @@ jobs:
 
       - uses: actions/upload-artifact@v4
         with:
-          name: build-files
+          name: build-files-windows
           path: |
             ${{ github.workspace }}\build\bin\*.exe
             ${{ github.workspace }}\build\bin\*.zip
@@ -66,7 +66,7 @@ jobs:
           gzip build/bin/wsl2-ssh-agent-proxy
       - uses: actions/upload-artifact@v4
         with:
-          name: build-files
+          name: build-files-linux
           path: |
             ${{ github.workspace }}/build/bin/*.gz
       - name: show info
@@ -87,4 +87,4 @@ jobs:
           fail_on_unmatched_files: true
           generate_release_notes: true
           files: |
-            ./build-files/*
+            ./build-files-*/*
