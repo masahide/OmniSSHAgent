@@ -16,7 +16,7 @@ fi
 __get_proxy() {
   echo "Downloading ${NAME}.gz"
   mkdir -p "${PROXYCMD_DIR}"
-  curl "${REPO_URL}/releases/${VER_PATH}/${NAME}.gz" -sL | ungzip >"${CMD}"
+  curl "${REPO_URL}/releases/${VER_PATH}/${NAME}.gz" -sL | ungzip > "${CMD}"
   chmod +x "${CMD}"
 }
 
@@ -34,7 +34,7 @@ setup_proxy() {
     chmod 700 "${SSH_AUTH_SOCK_DIR}"
   fi
 
-  ${CMD} >>"${PROXYCMD_DIR}/${NAME}.log" 2>&1 &
+  ${CMD} >> "${PROXYCMD_DIR}/${NAME}.log" 2>&1 &
 }
 
 setup_proxy
