@@ -42,7 +42,7 @@ jobs:
           powershell Compress-Archive -Path build/bin/OmniSSHAgent.exe -DestinationPath build/bin/OmniSSHAgent.zip
           rm build/bin/OmniSSHAgent.exe
 
-      - uses: actions/upload-artifact@v3
+      - uses: actions/upload-artifact@v4
         with:
           name: build-files
           path: |
@@ -52,15 +52,37 @@ jobs:
         run: |
           echo "ls build/bin"  >> $env:GITHUB_STEP_SUMMARY
           ls "build/bin">> $env:GITHUB_STEP_SUMMARY
+  build-wsl2-ssh-agent-proxy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: 'go.mod'
+          cache: true
+      - name: build
+        run: |
+          go build -o build/bin/wsl2-ssh-agent-proxy ./cmd/wsl2-ssh-agent-proxy
+          gzip build/bin/wsl2-ssh-agent-proxy build/bin/wsl2-ssh-agent-proxy.gz
+          rm build/bin/wsl2-ssh-agent-proxy
+      - uses: actions/upload-artifact@v4
+        with:
+          name: build-files
+          path: |
+            ${{ github.workspace }}\build\bin\*.gzip
+      - name: show info
+        run: |
+          echo "ls build/bin"  >> $env:GITHUB_STEP_SUMMARY
+          ls "build/bin">> $env:GITHUB_STEP_SUMMARY
   create-release:
     if: startsWith(github.ref, 'refs/tags/')
     runs-on: ubuntu-22.04
-    needs: [build-exe]
+    needs: [build-exe, build-wsl2-ssh-agent-proxy]
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
       - name: Download All Artifacts
-        uses: actions/download-artifact@v3
-      - uses: softprops/action-gh-release@v1
+        uses: actions/download-artifact@v4
+      - uses: softprops/action-gh-release@v2
         with:
           prerelease: true
           fail_on_unmatched_files: true
