@@ -182,7 +182,7 @@ func (ps *pwshIOStream) handleConnection(ctx context.Context, conn net.Conn, cha
 		}
 		domainSocketWriter.Flush()
 		if debug {
-			log.Printf("DomainSocketWriter.Write ch:%d len:%d", channelID, len(msg))
+			log.Printf("DomainSocketWriter.Write ch:%d len:%d msg:%v", channelID, len(msg), msg)
 		}
 	}
 	if debug {
