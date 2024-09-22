@@ -8,6 +8,7 @@ import (
 	"encoding/binary"
 	"errors"
 	"flag"
+	"fmt"
 	"io"
 	"log"
 	"net"
@@ -20,9 +21,25 @@ import (
 	"syscall"
 )
 
+const maxAgentResponseBytes = 16 << 20
+
 //go:embed pwsh.ps1
 var pwshScript string
 var debug bool
+var byteOrder binary.ByteOrder // エンディアンを保持する変数
+
+func isLittleEndian() bool {
+	var i int32 = 0x01020304
+	buf := make([]byte, 4)
+	binary.LittleEndian.PutUint32(buf, uint32(i))
+	return buf[0] == 0x04
+}
+func init() {
+	byteOrder = map[bool]binary.ByteOrder{
+		true:  binary.LittleEndian,
+		false: binary.BigEndian,
+	}[isLittleEndian()]
+}
 
 const (
 	HeaderSize = 12 // 4 bytes for channel ID, 4 bytes for message length
@@ -78,9 +95,9 @@ func (mux *Multiplexer) readLoop(ctx context.Context) error {
 			log.Printf("mux readFull header:[%v]", header)
 		}
 
-		packetType := binary.LittleEndian.Uint32(header[:4])
-		channelID := binary.LittleEndian.Uint32(header[4:])
-		length := binary.LittleEndian.Uint32(header[8:])
+		packetType := byteOrder.Uint32(header[:4])
+		channelID := byteOrder.Uint32(header[4:])
+		length := byteOrder.Uint32(header[8:])
 		payload := make([]byte, length)
 		_, err = io.ReadFull(mux.reader, payload)
 		if err != nil {
@@ -112,9 +129,9 @@ func (mux *Multiplexer) readLoop(ctx context.Context) error {
 
 func (mux *Multiplexer) WriteChannel(packet Packet) error {
 	buf := make([]byte, HeaderSize+len(packet.Payload))
-	binary.LittleEndian.PutUint32(buf[0:4], packet.PacketType)
-	binary.LittleEndian.PutUint32(buf[4:8], packet.ChannelID)
-	binary.LittleEndian.PutUint32(buf[8:HeaderSize], uint32(len(packet.Payload)))
+	byteOrder.PutUint32(buf[0:4], packet.PacketType)
+	byteOrder.PutUint32(buf[4:8], packet.ChannelID)
+	byteOrder.PutUint32(buf[8:HeaderSize], uint32(len(packet.Payload)))
 	copy(buf[HeaderSize:], packet.Payload)
 	_, err := mux.writer.Write(buf)
 	//n, err := mux.writer.Write(buf)
@@ -141,6 +158,37 @@ func (mux *Multiplexer) CloseChannel(channelID uint32) {
 	}
 }
 
+func writePacket(w io.Writer, b []byte) error {
+	var length [4]byte
+	binary.BigEndian.PutUint32(length[:], uint32(len(b)))
+	if _, err := w.Write(length[:]); err != nil {
+		return err
+	}
+	if _, err := w.Write(b); err != nil {
+		return err
+	}
+	return nil
+}
+func readPacket(conn net.Conn) ([]byte, error) {
+	var length [4]byte
+	if _, err := io.ReadFull(conn, length[:]); err != nil {
+		return []byte{}, err
+	}
+	l := binary.BigEndian.Uint32(length[:])
+	if l == 0 {
+		return []byte{}, fmt.Errorf("agent: request size is 0")
+	}
+	if l > maxAgentResponseBytes {
+		return []byte{}, fmt.Errorf("agent: request too large: %d", l)
+	}
+	b := make([]byte, l)
+	if _, err := io.ReadFull(conn, b); err != nil {
+		return []byte{}, err
+	}
+	//log.Printf("readPacket b:%s", string(b))
+	return b, nil
+}
+
 func (ps *pwshIOStream) handleConnection(ctx context.Context, conn net.Conn, channelID uint32) {
 	defer conn.Close()
 	ch := ps.OpenChannel(channelID)
@@ -151,8 +199,7 @@ func (ps *pwshIOStream) handleConnection(ctx context.Context, conn net.Conn, cha
 		}()
 		packetType := PacketTypeConnectSend
 		for {
-			payload := make([]byte, 4096)
-			n, err := conn.Read(payload)
+			b, err := readPacket(conn)
 			if err != nil {
 				if err == io.EOF {
 					if debug {
@@ -160,10 +207,8 @@ func (ps *pwshIOStream) handleConnection(ctx context.Context, conn net.Conn, cha
 					}
 					break
 				}
-				log.Println("Error reading from connection:", err)
-				break
 			}
-			ps.WriteChannel(Packet{PacketType: packetType, ChannelID: channelID, Payload: payload[:n]})
+			ps.WriteChannel(Packet{PacketType: packetType, ChannelID: channelID, Payload: b})
 			packetType = PacketTypeSend
 			select {
 			case <-ctx.Done():
@@ -175,7 +220,7 @@ func (ps *pwshIOStream) handleConnection(ctx context.Context, conn net.Conn, cha
 
 	domainSocketWriter := bufio.NewWriter(conn)
 	for msg := range ch {
-		_, err := domainSocketWriter.Write(msg)
+		err := writePacket(domainSocketWriter, msg)
 		if err != nil {
 			log.Println("Error writing to connection:", err)
 			break

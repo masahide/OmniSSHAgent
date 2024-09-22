@@ -32,63 +32,6 @@ $WritePacketWorker = {
     }
 }
 
-$NamePipeReadWorkerScript = {
-    param (
-        [Hashtable] $WorkerInstance
-    )
-
-    class NamedPipeReadWorker {
-        [Hashtable] $WorkerInstance
-
-        NamedPipeReadWorker([Hashtable] $WorkerInstance) {
-            $this.WorkerInstance = $WorkerInstance
-        }
-
-        [void]SendResponse([hashtable]$Packet) {
-            $null = $this.WorkerInstance.MainPacketQueue.Enqueue($Packet)
-            $null = $this.WorkerInstance.MainPacketQueueSignal.Set()
-            # [Console]::Error.WriteLine("PacketWorker [ch:$($Packet.ChannelID) type:$($Packet.TypeNum)]: Response sent.")
-        }
-        
-        [void]StopWorker([Int32]$ChannelID) {
-            $this.SendResponse(@{ Type = 2; Payload = [byte[]]::new(0); ChannelID = $ChannelID })
-            $null = $this.WorkerInstance.WorkerQueue.Enqueue($this.WorkerInstance)
-            # [Console]::Error.WriteLine("PacketWorker [ch:$($ChannelID)]: Worker stopped.")
-        }
-        [void]NamedPipeReaderRun() {
-            # [Console]::Error.WriteLine("PacketReadWorker started.")
-            $Payload = [byte[]]::new(10240)
-            while ($true) { 
-                # TODO: NamedPipeReadWorkerQueueSignal, NamedPipeReadWorkerQueue 
-                $null = $this.WorkerInstance.NamedPipeReadWorkerQueueSignal.WaitOne()
-                $task = @{}
-                while ($this.WorkerInstance.NamedPipeReadWorkerQueue.TryDequeue([ref]$task)) {
-                    # [Console]::Error.WriteLine("PacketReadWorker [ch:$($task.channelID) type:$($this.WorkerInstance.TypeNum)]: Packet received.")
-                    while ($true) {
-                        try {
-                            $n = $task.NamedPipeStream.Read($Payload, 0, $Payload.Length)
-                            if ($n -gt 0) {
-                                $Payload = $Payload[0..($n - 1)]
-                                $this.SendResponse(@{ Type = 1; Payload = $Payload; ChannelID = $task.channelID })
-                                throw "PacketReadWorker [ch:$($task.channelID)]: Response read from named pipe and sent."
-                            }
-                        }
-                        catch {
-                            [Console]::Error.WriteLine("PacketReadWorker [ch:$($task.channelID)]: Exception occurred while processing. Error: $($_.Exception.Message). Worker will stop.")
-                            $this.SendResponse(@{ Type = 2; Payload = [byte[]]::new(0); ChannelID = $task.ChannelID })
-                            $task.NamedPipeStream.Close()
-                            $null = $this.WorkerInstance.WorkerQueue.Enqueue($this.WorkerInstance)
-                            # [Console]::Error.WriteLine("PacketReadWorker [ch:$($task.ChannelID)]: Worker stopped.")
-                            continue
-                        }
-                    }
-                }
-            }
-        }
-    }
-    [NamedPipeReadWorker]::new($WorkerInstance).NamedPipeReaderRun()
-}
-
 
 $PacketWorkerScript = {
     param (
@@ -149,6 +92,7 @@ $PacketWorkerScript = {
                     $this.NamedPipeStream = $null
                     return $false
                 }
+                # [Console]::Error.WriteLine("PacketWorker [ch:$($Packet.channelID) type:$($Packet.TypeNum)]: open Named-pipe:openssh-ssh-agent...")
                 $this.NamedPipeStream = [System.IO.Pipes.NamedPipeClientStream]::new(".", "openssh-ssh-agent", [System.IO.Pipes.PipeDirection]::InOut)
                 $this.NamedPipeStream.Connect()
                 $this.WorkerInstance.ChannelID = $Packet.ChannelID
@@ -165,19 +109,35 @@ $PacketWorkerScript = {
                 return $false
             }
 
-            # TODO: Write -> Read
+            # Write -> Read
+
+            # [Console]::Error.WriteLine("PacketWorker [ch:$($Packet.channelID) type:$($Packet.TypeNum)]: Named pipe write...")
+            $Header = [BitConverter]::GetBytes($Packet.Payload.Length)
+            $null = [Array]::Reverse($Header)
+            $this.NamedPipeStream.Write($Header, 0, $Header.Length)
             $this.NamedPipeStream.Write($Packet.Payload, 0, $Packet.Payload.Length)
             $this.NamedPipeStream.Flush()
-            # [Console]::Error.WriteLine("PacketWorker [ch:$($Packet.channelID) type:$($Packet.TypeNum)]: Data written to named pipe.")
+            # [Console]::Error.WriteLine("PacketWorker [ch:$($Packet.channelID) type:$($Packet.TypeNum)]: Data written to named pipe. length:$($Packet.Payload.Length)")
             
-            $Payload = [byte[]]::new(10240)
-            $n = $this.NamedPipeStream.Read($Payload, 0, $Payload.Length)
+            $Header = [byte[]]::new(4)
+            $n = $this.NamedPipeStream.Read($Header, 0, $Header.Length)
+            if ($n -eq 0) {
+                [Console]::Error.WriteLine("PacketWorker [ch:$($Packet.channelID) type:$($Packet.TypeNum)]: header reaad error length:0")
+                return $false
+            }
+            $null = [Array]::Reverse($Header)
+            $length = [BitConverter]::ToInt32($Header, 0)
+            $Payload = [byte[]]::new($length)
+            $n = $this.NamedPipeStream.Read($Payload, 0, $length)
             if ($n -gt 0) {
+                # [Console]::Error.WriteLine("PacketWorker [ch:$($Packet.channelID) type:$($Packet.TypeNum)]: read payload:length:$($Payload.Length), n:$($n)")
                 $Payload = $Payload[0..($n - 1)]
+                # [Console]::Error.WriteLine("PacketWorker [ch:$($Packet.channelID) type:$($Packet.TypeNum)]: read payload:length:$($Payload.Length), n:$($n)")
                 $this.SendResponse(@{ Type = 1; Payload = $Payload; ChannelID = $Packet.ChannelID })
                 # [Console]::Error.WriteLine("PacketWorker [ch:$($Packet.channelID) type:$($Packet.TypeNum)]: Response read from named pipe and sent.")
+                return $true
             }
-            return $true
+            return $false
         }
     }
 
