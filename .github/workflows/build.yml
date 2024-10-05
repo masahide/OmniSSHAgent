@@ -37,14 +37,17 @@ jobs:
         run: |
           wails build -nsis
           go build -o build/bin/omni-socat.exe ./cmd/omni-socat
+          go build -o build/bin/agent-bench.exe ./cmd/agent-bench
           powershell Compress-Archive -Path build/bin/omni-socat.exe -DestinationPath build/bin/omni-socat.zip
           rm build/bin/omni-socat.exe
+          powershell Compress-Archive -Path build/bin/agent-bench.exe -DestinationPath build/bin/agent-bench.zip
+          rm build/bin/agent-bench.exe
           powershell Compress-Archive -Path build/bin/OmniSSHAgent.exe -DestinationPath build/bin/OmniSSHAgent.zip
           rm build/bin/OmniSSHAgent.exe
 
-      - uses: actions/upload-artifact@v3
+      - uses: actions/upload-artifact@v4
         with:
-          name: build-files
+          name: build-files-windows
           path: |
             ${{ github.workspace }}\build\bin\*.exe
             ${{ github.workspace }}\build\bin\*.zip
@@ -52,18 +55,47 @@ jobs:
         run: |
           echo "ls build/bin"  >> $env:GITHUB_STEP_SUMMARY
           ls "build/bin">> $env:GITHUB_STEP_SUMMARY
+  build-unix:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: 'go.mod'
+          cache: true
+      - name: build
+        run: |
+          CGO_ENABLED=0 go build -o build/bin/wsl2-ssh-agent-proxy ./cmd/wsl2-ssh-agent-proxy
+          CGO_ENABLED=0 GOOS=linux GOARCH=arm64 go build -o build/bin/agent-bench-linux-arm64 ./cmd/agent-bench
+          CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -o build/bin/agent-bench-linux-amd64 ./cmd/agent-bench
+          CGO_ENABLED=0 GOOS=darwin GOARCH=arm64 go build -o build/bin/agent-bench-mac-arm64 ./cmd/agent-bench
+          CGO_ENABLED=0 GOOS=darwin GOARCH=amd64 go build -o build/bin/agent-bench-mac-amd64 ./cmd/agent-bench
+          gzip build/bin/wsl2-ssh-agent-proxy
+          gzip build/bin/agent-bench-linux-arm64
+          gzip build/bin/agent-bench-linux-amd64
+          gzip build/bin/agent-bench-mac-arm64
+          gzip build/bin/agent-bench-mac-amd64
+      - uses: actions/upload-artifact@v4
+        with:
+          name: build-files-linux
+          path: |
+            ${{ github.workspace }}/build/bin/*.gz
+      - name: show info
+        run: |
+          echo "ls build/bin"  >> $env:GITHUB_STEP_SUMMARY
+          ls "build/bin">> $env:GITHUB_STEP_SUMMARY
   create-release:
     if: startsWith(github.ref, 'refs/tags/')
     runs-on: ubuntu-22.04
-    needs: [build-exe]
+    needs: [build-exe, build-unix]
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
       - name: Download All Artifacts
-        uses: actions/download-artifact@v3
-      - uses: softprops/action-gh-release@v1
+        uses: actions/download-artifact@v4
+      - uses: softprops/action-gh-release@v2
         with:
           prerelease: true
           fail_on_unmatched_files: true
           generate_release_notes: true
           files: |
-            ./build-files/*
+            ./build-files-*/*

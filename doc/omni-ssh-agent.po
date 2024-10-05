@@ -21,14 +21,17 @@ rectangle ssh-add {
 
 rectangle OmniSSHAgent {
   node "OmniSSHAgent" as omniagent  #pink;line:red;line.bold;text:black;
-  agent "omni-socat" as proxy  #pink;line:red;text:black;
+  agent "Powershell\nScript" as proxy  #pink;line:red;text:black;
 }  
 
 rectangle Client {
   agent "<Windows>\nOpenSSH\nssh.exe" as msssh #skyblue
   agent "WinSCP\nFileZilla\nPuTTY" as putty #skyblue
   agent "<WSL1>\nssh"  as wsl1ssh #gray
-  agent "<WSL2>\n(used socat pipe)\nssh"  as wsl2ssh #limegreen
+  rectangle "<WSL2>"  #limegreen {
+    agent "wsl2-ssh-agent-proxy"  as wsl2proxy #pink;line:red
+    agent ssh as wsl2ssh #limegreen 
+  }
   agent "<cygwin\n(MSYS2)>\nssh.exe" as cygwinssh #darkgoldenrod
 }
 
@@ -42,7 +45,9 @@ omniagent --> putty #line:crimson;line.bold;text:crimson : "pageant_shm"
 omniagent --> wsl1ssh #line:black;line.bold;text:black : "WSL1UnixSocket"
 omniagent -d-> proxy  #line:blue;line.bold;text:blue : "NamedPipe"
 
-proxy --> wsl2ssh : "stdout/stdin"
+proxy --> wsl2proxy : "stdout/stdin"
+
+wsl2proxy --> wsl2ssh
 
 omniagent --> cygwinssh #line:sienna;line.bold;text:sienna : "cygwinUnixSocket"
 
