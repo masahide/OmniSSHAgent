@@ -23,7 +23,7 @@ OmniSSHAgent is a program to simplify what used to be a chaotic situation, as sh
 
 ## The following interfaces are supported
 - pageant.exe(PuTTY) shared memory
-- Unix domain socket for WSL2
+- Unix domain socket for WSL3
 - NamedPipe on Windows
 - Unix domain socket for WSL1
 - Unix domain socket for MSYS2(Cygwin) ( [#1](https://github.com/masahide/OmniSSHAgent/issues/1) )
@@ -53,41 +53,29 @@ OmniSSHAgent does not have an installer, nor registers itself to start upon boot
 
 
 ### Using with WSL2
-#### Setting up socat pipe in Ubuntu(WSL2).
+#### Setting up wsl2-ssh-agent-proxy in Ubuntu or Rocky(WSL2).
 Choose the instructions for your favourite shell below. If your shell isn't listed here you can convert the bash script to your shell syntax and send a PR to add it to the repo.
 
 ##### Bash (and all POSIX-compliant shells)
 1. Download [ubuntu.setup.sh](hack/ubuntu.setup.sh) with the following command:
 ```bash
-mkdir -p $HOME/omni-socat
-curl -sL https://raw.githubusercontent.com/masahide/OmniSSHAgent/main/hack/ubuntu.setup.sh -o $HOME/omni-socat/ubuntu.setup.sh
+mkdir -p $HOME/wsl2-ssh-agent-proxy
+curl -sL https://raw.githubusercontent.com/masahide/OmniSSHAgent/wsl2-ssh-agent-proxy/hack/ubuntu.wsl2-ssh-agent-proxy.sh -o $HOME/wsl2-ssh-agent-proxy/ubuntu.wsl2-ssh-agent-proxy.sh
 ```
 2. Add the following line to `~/.bashrc`, `~/.zshrc`, or whatever file is applicable to your shell:
 ```bash
-source $HOME/omni-socat/ubuntu.setup.sh
+source $HOME/wsl2-ssh-agent-proxy/ubuntu.wsl2-ssh-agent-proxy.sh
 ```
 
 ##### Fish
 1. Download [ubuntu-fish.setup.fish](hack/ubuntu-fish.setup.fish) with the following command:
 ```fish
-mkdir -p $HOME/omni-socat
-curl -sL https://raw.githubusercontent.com/masahide/OmniSSHAgent/main/hack/ubuntu-fish.setup.fish -o $HOME/omni-socat/ubuntu-fish.setup.fish
+mkdir -p $HOME/wsl2-ssh-agent-proxy
+curl -sL https://raw.githubusercontent.com/masahide/OmniSSHAgent/wsl2-ssh-agent-proxy/hack/ubuntu.wsl2-ssh-agent-proxy-fish.sh -o $HOME/wsl2-ssh-agent-proxy/ubuntu.wsl2-ssh-agent-proxy-fish.sh
 ```
 2. Add the following line to `~/.config/fish/config.fish`:
 ```fish
-. $HOME/omni-socat/ubuntu-fish.setup.fish
-```
-
-#### Setting up socat pipe in rocky linux.
-
-1. Download [rocky.setup.sh](hack/rocky.setup.sh) with the following command
-```bash
-mkdir -p $HOME/omni-socat
-curl -sL https://raw.githubusercontent.com/masahide/OmniSSHAgent/main/hack/rocky.setup.sh -o $HOME/omni-socat/rocky.setup.sh
-```
-2. Add the following line to `~/.bashrc`, `~/.zshrc`, or whatever file is applicable to your shell:
-```bash
-source $HOME/omni-socat/rocky.setup.sh
+. $HOME/wsl2-ssh-agent-proxy/ubuntu.wsl2-ssh-agent-proxy-fish.sh
 ```
 
 ### Using with WSL1
@@ -120,12 +108,12 @@ Variable name:  SSH_AUTH_SOCK
 Variable Value: /mnt/c/Users/<UserName>/OmniSSHAgent.sock
 ```
 
-## Using with 1Password proxy mode
+## Using with OpenSSH ssh-agent NamedPipe (1Password etc.) proxy mode
 
-This is a mode using [1Password's ssh-agent function](https://developer.1password.com/docs/ssh/) as a backend as shown in the following figure.
-![1Password-Proxy-mode](https://github.com/masahide/OmniSSHAgent/blob/main/doc/1passwordProxyMode.png?raw=true)
+This is a mode using [OpenSSH ssh-agent NamedPipe](https://learn.microsoft.com/windows-server/administration/openssh/openssh_keymanagement) or [1Password's ssh-agent function](https://developer.1password.com/docs/ssh/agent/) as a backend as shown in the following figure.
+![NamedPipe-Proxy-mode](https://github.com/masahide/OmniSSHAgent/blob/main/doc/NamedPipeProxyMode.png?raw=true)
 
-By setting "Enable proxy mode for 1Password key-agent" in the configuration, OmniSSHAgent becomes a Proxy that works with 1Password's ssh-agent as a backend.
+By setting "Enable proxy mode for 1Password key-agent" in the configuration, OmniSSHAgent becomes a Proxy that works with 1Password or OpenSSH's Namedpipe ssh-agent  as a backend.
 
 When "Enable proxy mode for 1Password key-agent" is enabled, OmniSSHAgent operates as a mere proxy, and therefore, private keys cannot be added.
 

@@ -1,4 +1,4 @@
-# OmniSSHAgent - 1Password proxy mode
+# OmniSSHAgent - Named pipe proxy mode 
 
 
 @startuml
@@ -12,29 +12,35 @@ skinparam nodeFontSize 20
 
 left to right direction
 
-  node "1Password\n(ssh-agent)" as 1password #skyblue
+node "OpenSSH ssh-agent\nor\n1Password etc.\n(named pipe)" as namedpipe #skyblue
 
 rectangle "OmniSSHAgent" {
   node "OmniSSHAgent\n(proxy mode)" as omniagent  #pink;line:red;line.bold;text:black;
-  agent "omni-socat" as proxy  #pink;line:red;text:black;
+  agent "Powershell\nScript" as ps  #pink;line:red;text:black;
 }  
 
 rectangle Client {
   agent "<Windows>\nOpenSSH\nssh.exe" as msssh #skyblue
   agent "WinSCP\nFileZilla\nPuTTY" as putty #skyblue
   agent "<WSL1>\nssh"  as wsl1ssh #gray
-  agent "<WSL2>\n(used socat pipe)\nssh"  as wsl2ssh #limegreen
+  rectangle "<WSL2>"  #limegreen {
+    agent "wsl2-ssh-agent-proxy"  as wsl2proxy #pink;line:red
+    agent ssh as wsl2ssh #limegreen 
+  }
   agent "<cygwin\n(MSYS2)>\nssh.exe" as cygwinssh #darkgoldenrod
 }
 
-1password --> omniagent #line:blue;line.bold;text:blue : "NamedPipe"
 
-1password --> msssh #line:blue;line.bold;text:blue : "NamedPipe"
+namedpipe --> omniagent #line:blue;line.bold;text:blue : "NamedPipe"
+
+namedpipe --> msssh #line:blue;line.bold;text:blue : "NamedPipe"
 omniagent --> putty #line:crimson;line.bold;text:crimson : "pageant_shm"
 omniagent --> wsl1ssh #line:black;line.bold;text:black : "WSL1UnixSocket"
-1password -d-> proxy  #line:blue;line.bold;text:blue : "NamedPipe"
+namedpipe -d-> ps  #line:blue;line.bold;text:blue : "NamedPipe"
 
-proxy --> wsl2ssh : "stdout/stdin"
+ps --> wsl2proxy : "stdout/stdin"
+
+wsl2proxy --> wsl2ssh
 
 omniagent --> cygwinssh #line:sienna;line.bold;text:sienna : "cygwinUnixSocket"
 
