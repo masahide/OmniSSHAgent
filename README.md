@@ -57,7 +57,7 @@ OmniSSHAgent does not have an installer, nor registers itself to start upon boot
 Choose the instructions for your favourite shell below. If your shell isn't listed here you can convert the bash script to your shell syntax and send a PR to add it to the repo.
 
 ##### Bash (and all POSIX-compliant shells)
-1. Download [ubuntu.setup.sh](hack/ubuntu.setup.sh) with the following command:
+1. Download [ubuntu.wsl2-ssh-agent-proxy.sh](hack/ubuntu.wsl2-ssh-agent-proxy.sh) with the following command:
 ```bash
 mkdir -p $HOME/wsl2-ssh-agent-proxy
 curl -sL https://raw.githubusercontent.com/masahide/OmniSSHAgent/wsl2-ssh-agent-proxy/hack/ubuntu.wsl2-ssh-agent-proxy.sh -o $HOME/wsl2-ssh-agent-proxy/ubuntu.wsl2-ssh-agent-proxy.sh
@@ -68,14 +68,14 @@ source $HOME/wsl2-ssh-agent-proxy/ubuntu.wsl2-ssh-agent-proxy.sh
 ```
 
 ##### Fish
-1. Download [ubuntu-fish.setup.fish](hack/ubuntu-fish.setup.fish) with the following command:
+1. Download [ubuntu.wsl2-ssh-agent-proxy.fish](hack/ubuntu.wsl2-ssh-agent-proxy.fish) with the following command:
 ```fish
 mkdir -p $HOME/wsl2-ssh-agent-proxy
-curl -sL https://raw.githubusercontent.com/masahide/OmniSSHAgent/wsl2-ssh-agent-proxy/hack/ubuntu.wsl2-ssh-agent-proxy-fish.sh -o $HOME/wsl2-ssh-agent-proxy/ubuntu.wsl2-ssh-agent-proxy-fish.sh
+curl -sL https://raw.githubusercontent.com/masahide/OmniSSHAgent/wsl2-ssh-agent-proxy/hack/ubuntu.wsl2-ssh-agent-proxy.fish -o $HOME/wsl2-ssh-agent-proxy/ubuntu.wsl2-ssh-agent-proxy.fish
 ```
 2. Add the following line to `~/.config/fish/config.fish`:
 ```fish
-. $HOME/wsl2-ssh-agent-proxy/ubuntu.wsl2-ssh-agent-proxy-fish.sh
+. $HOME/wsl2-ssh-agent-proxy/ubuntu.wsl2-ssh-agent-proxy.fish
 ```
 
 ### Using with WSL1
