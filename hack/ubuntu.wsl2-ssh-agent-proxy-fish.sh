@@ -1,40 +1,46 @@
-#!/bin/sh
+#!/usr/bin/env fish
 
-NAME=wsl2-ssh-agent-proxy
-export SSH_AUTH_SOCK="${HOME}/.ssh/${NAME}/${NAME}.sock"
-PROXYCMD_DIR="${HOME}/${NAME}"
-CMD="${PROXYCMD_DIR}/${NAME}"
+set NAME "wsl2-ssh-agent-proxy"
+set -x SSH_AUTH_SOCK "$HOME/.ssh/$NAME/$NAME.sock"
+set PROXYCMD_DIR "$HOME/$NAME"
+set CMD "$PROXYCMD_DIR/$NAME"
 
-RELEASE_NAME=$1
-REPO_URL=https://github.com/masahide/OmniSSHAgent
-if [ -z "${RELEASE_NAME}" ]; then
-  VER_PATH="releases/latest"
+set RELEASE_NAME $argv[1]
+set REPO_URL "https://github.com/masahide/OmniSSHAgent"
+
+if test -z "$RELEASE_NAME"
+    set VER_PATH "releases/latest"
 else
-  VER_PATH="download/${RELEASE_NAME}"
-fi
+    set VER_PATH "download/$RELEASE_NAME"
+end
 
-__get_proxy() {
-  echo "Downloading ${NAME}.gz"
-  mkdir -p "${PROXYCMD_DIR}"
-  curl "${REPO_URL}/releases/${VER_PATH}/${NAME}.gz" -sL | gunzip >"${CMD}"
-  chmod +x "${CMD}"
-}
+function __get_proxy
+    echo "Downloading $NAME.gz"
+    mkdir -p "$PROXYCMD_DIR"
+    curl "$REPO_URL/releases/$VER_PATH/$NAME.gz" -sL | gunzip > "$CMD"
+    chmod +x "$CMD"
+end
 
-setup_proxy() {
-  [ -f "${CMD}" ] || __get_proxy
+function setup_proxy
+    if not test -f "$CMD"
+        __get_proxy
+    end
 
-  # Checks wether $SSH_AUTH_SOCK is a socket or not
-  (ps aux | grep "${CMD}" | grep -qv "grep") && [ -S "${SSH_AUTH_SOCK}" ] && return
+    # Checks whether $SSH_AUTH_SOCK is a socket or not
+    if pgrep -f "$CMD" > /dev/null; and test -S "$SSH_AUTH_SOCK"
+        return
+    end
 
-  # Create directory for the socket, if it is missing
-  SSH_AUTH_SOCK_DIR="$(dirname "${SSH_AUTH_SOCK}")"
-  mkdir -p "${SSH_AUTH_SOCK_DIR}"
-  # Applying best-practice permissions if we are creating ${HOME}/.ssh
-  if [ "${SSH_AUTH_SOCK_DIR}" = "${HOME}/.ssh" ]; then
-    chmod 700 "${SSH_AUTH_SOCK_DIR}"
-  fi
+    # Create directory for the socket, if it is missing
+    set SSH_AUTH_SOCK_DIR (dirname "$SSH_AUTH_SOCK")
+    mkdir -p "$SSH_AUTH_SOCK_DIR"
 
-  (setsid "${CMD}" >>"${PROXYCMD_DIR}/${NAME}.log" 2>&1 &)
-}
+    # Applying best-practice permissions if we are creating $HOME/.ssh
+    if test "$SSH_AUTH_SOCK_DIR" = "$HOME/.ssh"
+        chmod 700 "$SSH_AUTH_SOCK_DIR"
+    end
+
+    setsid "$CMD" >> "$PROXYCMD_DIR/$NAME.log" 2>&1 &
+end
 
 setup_proxy
