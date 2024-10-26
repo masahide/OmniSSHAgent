@@ -9,7 +9,7 @@ set RELEASE_NAME $argv[1]
 set REPO_URL "https://github.com/masahide/OmniSSHAgent"
 
 if test -z "$RELEASE_NAME"
-    set VER_PATH "releases/latest"
+    set VER_PATH "latest/download"
 else
     set VER_PATH "download/$RELEASE_NAME"
 end
