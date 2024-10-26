@@ -75,7 +75,10 @@ $PacketWorkerScript = {
                     }
                     catch {
                         [Console]::Error.WriteLine("PacketWorker [ch:$($Packet.channelID) type:$($Packet.TypeNum)]: Exception occurred while processing. Error: $($_.Exception.Message). Worker will stop.")
+                        $this.NamedPipeStream.Close()
+                        $this.NamedPipeStream = $null
                         $this.StopWorker($Packet.ChannelID)
+                        Start-Sleep -Seconds 1.0
                         continue
                     }
                 }
