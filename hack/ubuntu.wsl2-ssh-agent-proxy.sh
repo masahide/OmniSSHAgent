@@ -8,7 +8,7 @@ CMD="${PROXYCMD_DIR}/${NAME}"
 RELEASE_NAME=$1
 REPO_URL=https://github.com/masahide/OmniSSHAgent
 if [ -z "${RELEASE_NAME}" ]; then
-  VER_PATH="releases/latest"
+  VER_PATH="latest/download"
 else
   VER_PATH="download/${RELEASE_NAME}"
 fi
@@ -16,7 +16,7 @@ fi
 __get_proxy() {
   echo "Downloading ${NAME}.gz"
   mkdir -p "${PROXYCMD_DIR}"
-  curl "${REPO_URL}/releases/${VER_PATH}/${NAME}.gz" -sL | gunzip > "${CMD}"
+  curl "${REPO_URL}/releases/${VER_PATH}/${NAME}.gz" -sL | gunzip >"${CMD}"
   chmod +x "${CMD}"
 }
 
@@ -34,7 +34,7 @@ setup_proxy() {
     chmod 700 "${SSH_AUTH_SOCK_DIR}"
   fi
 
-  (setsid "${CMD}" >> "${PROXYCMD_DIR}/${NAME}.log" 2>&1 &)
+  (setsid "${CMD}" >>"${PROXYCMD_DIR}/${NAME}.log" 2>&1 &)
 }
 
 setup_proxy
