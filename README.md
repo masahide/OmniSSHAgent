@@ -57,7 +57,7 @@ Choose the instructions for your preferred shell below. If your shell is not lis
 1. Download [ubuntu.wsl2-ssh-agent-proxy.sh](hack/ubuntu.wsl2-ssh-agent-proxy.sh) using the following command:
 ```bash
 mkdir -p $HOME/wsl2-ssh-agent-proxy
-curl -sL https://raw.githubusercontent.com/masahide/OmniSSHAgent/wsl2-ssh-agent-proxy/hack/ubuntu.wsl2-ssh-agent-proxy.sh -o $HOME/wsl2-ssh-agent-proxy/ubuntu.wsl2-ssh-agent-proxy.sh
+curl -sL https://raw.githubusercontent.com/masahide/OmniSSHAgent/refs/heads/main/hack/ubuntu.wsl2-ssh-agent-proxy.sh -o $HOME/wsl2-ssh-agent-proxy/ubuntu.wsl2-ssh-agent-proxy.sh
 ```
 2. Add the following line to `~/.bashrc`, `~/.zshrc`, or the appropriate file for your shell:
 ```bash
@@ -68,7 +68,7 @@ source $HOME/wsl2-ssh-agent-proxy/ubuntu.wsl2-ssh-agent-proxy.sh
 1. Download [ubuntu.wsl2-ssh-agent-proxy.fish](hack/ubuntu.wsl2-ssh-agent-proxy.fish) using the following command:
 ```fish
 mkdir -p $HOME/wsl2-ssh-agent-proxy
-curl -sL https://raw.githubusercontent.com/masahide/OmniSSHAgent/wsl2-ssh-agent-proxy/hack/ubuntu.wsl2-ssh-agent-proxy.fish -o $HOME/wsl2-ssh-agent-proxy/ubuntu.wsl2-ssh-agent-proxy.fish
+curl -sL https://raw.githubusercontent.com/masahide/OmniSSHAgent/refs/heads/main/hack/ubuntu.wsl2-ssh-agent-proxy.fish -o $HOME/wsl2-ssh-agent-proxy/ubuntu.wsl2-ssh-agent-proxy.fish
 ```
 2. Add the following line to `~/.config/fish/config.fish`:
 ```fish
