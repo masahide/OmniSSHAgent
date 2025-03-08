@@ -124,12 +124,12 @@ func (a *App) startup(ctx context.Context) {
 		go na.RunAgent()
 	}
 	if a.settings.UnixSocketAgent {
-		ua := &unix.DomainSock{Agent: a.keyRing, Debug: debug, Path: a.settings.UnixSocketPath}
+		ua := &unix.DomainSock{ExtendedAgent: a.keyRing, Debug: debug, Path: a.settings.UnixSocketPath}
 		go ua.RunAgent()
 		log.Println("Start Unix domain socket agent..")
 	}
 	if a.settings.CygWinAgent {
-		ca := &cygwinsocket.CygwinSock{Agent: a.keyRing, Debug: debug, Path: a.settings.CygWinSocketPath}
+		ca := &cygwinsocket.CygwinSock{ExtendedAgent: a.keyRing, Debug: debug, Path: a.settings.CygWinSocketPath}
 		go ca.RunAgent()
 		log.Println("Starting Cygwin unix domain socket agent..")
 	}

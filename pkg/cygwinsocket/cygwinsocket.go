@@ -18,7 +18,7 @@ import (
 )
 
 type CygwinSock struct {
-	agent.Agent
+	agent.ExtendedAgent
 	Debug    bool
 	Path     string
 	listener net.Listener
