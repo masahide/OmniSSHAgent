@@ -13,7 +13,7 @@ import (
 )
 
 type DomainSock struct {
-	agent.Agent
+	agent.ExtendedAgent
 	Debug bool
 	Path  string
 }
