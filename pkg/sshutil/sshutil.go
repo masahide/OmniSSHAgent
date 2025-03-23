@@ -344,44 +344,70 @@ func (k *KeyRing) notice(action string, data interface{}) {
 
 func (k *KeyRing) List() ([]*agent.Key, error) {
 	k.notice("List", nil)
+	defer k.notice("Listed", nil)
 	return k.keyring.List()
 }
 func (k *KeyRing) Sign(key ssh.PublicKey, data []byte) (*ssh.Signature, error) {
 	//k.notice("Sign", map[string]interface{}{"publickey": key.Marshal(), "data": data})
-	k.notice("Sign", nil)
+	k.notice("Sign", key)
+	defer k.notice("Signed", key)
 	return k.keyring.Sign(key, data)
 }
 func (k *KeyRing) Add(key agent.AddedKey) error {
 	k.notice("Add", key)
+	defer k.notice("Added", key)
 	return k.keyring.Add(key)
 }
 func (k *KeyRing) Remove(key ssh.PublicKey) error {
-	k.notice("Remove", key.Marshal())
+	keyContents := key.Marshal()
+	k.notice("Remove", keyContents)
+	defer k.notice("Removed", keyContents)
 	return k.keyring.Remove(key)
 }
 func (k *KeyRing) RemoveAll() error {
 	k.notice("RemoveAll", "")
+	defer k.notice("RemovedAll", "")
 	return k.keyring.RemoveAll()
 }
 func (k *KeyRing) Lock(passphrase []byte) error {
 	k.notice("Lock", "")
+	defer k.notice("Locked", "")
 	return k.keyring.Lock(passphrase)
 }
 func (k *KeyRing) Unlock(passphrase []byte) error {
 	k.notice("UnLock", "")
+	defer k.notice("UnLocked", "")
 	return k.keyring.Unlock(passphrase)
 }
 func (k *KeyRing) Signers() ([]ssh.Signer, error) {
 	k.notice("Signers", nil)
+	defer k.notice("Signers", nil)
 	return k.Signers()
 }
 func (k *KeyRing) SignWithFlags(key ssh.PublicKey, data []byte, flags agent.SignatureFlags) (*ssh.Signature, error) {
 	//k.notice("SignWithFlags", map[string]interface{}{"publickey": key.Marshal(), "data": data, "flags": flags})
-	k.notice("SignWithFlags", nil)
+	k.notice("SignWithFlags", key)
+	defer k.notice("SignedWithFlags", key)
 	return k.keyring.SignWithFlags(key, data, flags)
 }
 func (k *KeyRing) Extension(extensionType string, contents []byte) ([]byte, error) {
 	//k.notice("Extension", map[string]interface{}{"extensionType": extensionType, "contents": contents})
 	k.notice("Extension", nil)
 	return k.keyring.Extension(extensionType, contents)
+}
+
+func (k *KeyRing) FindPrivKey(pubkey ssh.PublicKey) *sshkey.PrivateKeyFile {
+	pubKeyHash := ssh.FingerprintSHA256(pubkey)
+	keys, err := k.KeyList()
+	if err != nil {
+		return nil
+	}
+
+	for i, key := range keys {
+		if key.PublicKey.SHA256 == pubKeyHash {
+			return &keys[i]
+		}
+	}
+
+	return nil
 }

@@ -8,7 +8,9 @@ import (
 	"path/filepath"
 	"sync"
 
-	"github.com/getlantern/systray"
+	"golang.org/x/crypto/ssh"
+	"golang.org/x/crypto/ssh/agent"
+
 	"github.com/masahide/OmniSSHAgent/pkg/cygwinsocket"
 	"github.com/masahide/OmniSSHAgent/pkg/namedpipe"
 	"github.com/masahide/OmniSSHAgent/pkg/pageant"
@@ -17,16 +19,14 @@ import (
 	"github.com/masahide/OmniSSHAgent/pkg/store"
 	"github.com/masahide/OmniSSHAgent/pkg/unix"
 	"github.com/masahide/OmniSSHAgent/pkg/winopen"
-
-	//"github.com/masahide/OmniSSHAgent/pkg/wintray"
-	"github.com/masahide/OmniSSHAgent/icon"
+	"github.com/masahide/OmniSSHAgent/pkg/wintray"
 	"github.com/wailsapp/wails/v2/pkg/runtime"
 )
 
 // App application struct
 type App struct {
-	ctx context.Context
-	//ti       *wintray.TrayIcon
+	ctx      context.Context
+	ti       *wintray.TrayIcon
 	keyRing  *sshutil.KeyRing
 	settings *store.Settings
 	wg       sync.WaitGroup
@@ -37,14 +37,21 @@ func NewApp() *App {
 	return &App{}
 }
 
-func (a *App) systrayOnRedy() {
-	systray.SetIcon(icon.Data)
-	systray.SetTitle(AppName)
-	systray.SetTooltip(AppName)
-	mShowWindow := systray.AddMenuItem("ShowWindow", "Show main window")
-	mQuit := systray.AddMenuItem("Quit", "Quit the whole app")
-	mLogCheckBox := systray.AddMenuItemCheckbox("Debug log", "Enable debug log file output", false)
-	mLogDirOpen := systray.AddMenuItem("Open log directory", "open log directory")
+func (a *App) setTrayTooltip() {
+	tooltip := AppName
+	if keys, err := a.keyRing.KeyList(); err == nil {
+		tooltip = fmt.Sprintf("%s - %d keys loaded", tooltip, len(keys))
+	}
+	a.ti.SetTooltip(tooltip)
+}
+
+func (a *App) systrayOnReady() {
+	a.ti.SetTitle(AppName)
+	a.setTrayTooltip()
+	mShowWindow := a.ti.AddMenuItem("ShowWindow", "Show main window")
+	mQuit := a.ti.AddMenuItem("Quit", "Quit the whole app")
+	mLogCheckBox := a.ti.AddMenuItemCheckbox("Debug log", "Enable debug log file output", false)
+	mLogDirOpen := a.ti.AddMenuItem("Open log directory", "open log directory")
 	mLogDirOpen.Disable()
 	go func() {
 		for {
@@ -84,12 +91,10 @@ func (a *App) systrayOnExit() {
 func (a *App) startup(ctx context.Context) {
 	// Perform your setup here
 	a.ctx = ctx
-	/*
-		a.ti = wintray.NewTrayIcon()
-		a.ti.BalloonClickFunc = a.showWindow
-		a.ti.TrayClickFunc = a.showWindow
-		go a.ti.RunTray()
-	*/
+	a.ti = wintray.NewTrayIcon()
+	a.ti.BalloonClickFunc = a.showWindow
+	a.ti.TrayClickFunc = a.showWindow
+
 	a.wg.Add(1)
 	go func() {
 		defer func() {
@@ -98,7 +103,7 @@ func (a *App) startup(ctx context.Context) {
 			}
 			a.Quit()
 		}()
-		systray.Run(a.systrayOnRedy, a.systrayOnExit)
+		a.ti.Run(a.systrayOnReady, a.systrayOnExit)
 	}()
 
 	debug := false
@@ -140,7 +145,31 @@ func (a *App) notice(action string, data interface{}) {
 	case "Add", "Remove", "RemoveAll":
 		//a.ti.ShowBalloonNotification(action, sshutil.JSONDump(data))
 		runtime.EventsEmit(a.ctx, "LoadKeysEvent")
+
+	case "Added", "Removed", "RemovedAll":
+		a.setTrayTooltip()
+
+	case "Sign", "SignWithFlags":
+		switch t := data.(type) {
+		case *agent.Key:
+			if err := a.onSign(t); err != nil {
+				log.Printf("cannot find key to print: %v\n", err)
+			}
+		case ssh.PublicKey:
+			log.Printf("unexpected ssh.PublicKey\n")
+		}
 	}
+}
+
+func (a *App) onSign(pubkey *agent.Key) error {
+	privkey := a.keyRing.FindPrivKey(pubkey)
+	if privkey == nil {
+		return errors.New("private key not found")
+	}
+
+	a.ti.ShowBalloonNotification(wintray.ID,
+		fmt.Sprintf("SSH Key '%s' was used", privkey.PublicKey.Comment))
+	return nil
 }
 
 func (a *App) OpenFile() (string, error) {
@@ -172,7 +201,7 @@ func (a *App) Quit() {
 // shutdown はruntime.Quitから呼ばれる
 func (a *App) shutdown(ctx context.Context) {
 	log.Print("shutdown")
-	systray.Quit()
+	a.ti.Quit()
 	a.wg.Wait()
 }
 
