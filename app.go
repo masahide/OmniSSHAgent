@@ -8,6 +8,9 @@ import (
 	"path/filepath"
 	"sync"
 
+	"golang.org/x/crypto/ssh"
+	"golang.org/x/crypto/ssh/agent"
+
 	"github.com/masahide/OmniSSHAgent/pkg/cygwinsocket"
 	"github.com/masahide/OmniSSHAgent/pkg/namedpipe"
 	"github.com/masahide/OmniSSHAgent/pkg/pageant"
@@ -145,7 +148,28 @@ func (a *App) notice(action string, data interface{}) {
 
 	case "Added", "Removed", "RemovedAll":
 		a.setTrayTooltip()
+
+	case "Sign", "SignWithFlags":
+		switch t := data.(type) {
+		case *agent.Key:
+			if err := a.onSign(t); err != nil {
+				log.Printf("cannot find key to print: %v\n", err)
+			}
+		case ssh.PublicKey:
+			log.Printf("unexpected ssh.PublicKey\n")
+		}
 	}
+}
+
+func (a *App) onSign(pubkey *agent.Key) error {
+	privkey := a.keyRing.FindPrivKey(pubkey)
+	if privkey == nil {
+		return errors.New("private key not found")
+	}
+
+	a.ti.ShowBalloonNotification(wintray.ID,
+		fmt.Sprintf("SSH Key '%s' was used", privkey.PublicKey.Comment))
+	return nil
 }
 
 func (a *App) OpenFile() (string, error) {

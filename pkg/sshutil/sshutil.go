@@ -395,3 +395,19 @@ func (k *KeyRing) Extension(extensionType string, contents []byte) ([]byte, erro
 	k.notice("Extension", nil)
 	return k.keyring.Extension(extensionType, contents)
 }
+
+func (k *KeyRing) FindPrivKey(pubkey ssh.PublicKey) *sshkey.PrivateKeyFile {
+	pubKeyHash := ssh.FingerprintSHA256(pubkey)
+	keys, err := k.KeyList()
+	if err != nil {
+		return nil
+	}
+
+	for i, key := range keys {
+		if key.PublicKey.SHA256 == pubKeyHash {
+			return &keys[i]
+		}
+	}
+
+	return nil
+}
