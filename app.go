@@ -34,9 +34,17 @@ func NewApp() *App {
 	return &App{}
 }
 
+func (a *App) setTrayTooltip() {
+	tooltip := AppName
+	if keys, err := a.keyRing.KeyList(); err == nil {
+		tooltip = fmt.Sprintf("%s - %d keys loaded", tooltip, len(keys))
+	}
+	a.ti.SetTooltip(tooltip)
+}
+
 func (a *App) systrayOnReady() {
 	a.ti.SetTitle(AppName)
-	a.ti.SetTooltip(AppName)
+	a.setTrayTooltip()
 	mShowWindow := a.ti.AddMenuItem("ShowWindow", "Show main window")
 	mQuit := a.ti.AddMenuItem("Quit", "Quit the whole app")
 	mLogCheckBox := a.ti.AddMenuItemCheckbox("Debug log", "Enable debug log file output", false)
@@ -134,6 +142,9 @@ func (a *App) notice(action string, data interface{}) {
 	case "Add", "Remove", "RemoveAll":
 		//a.ti.ShowBalloonNotification(action, sshutil.JSONDump(data))
 		runtime.EventsEmit(a.ctx, "LoadKeysEvent")
+
+	case "Added", "Removed", "RemovedAll":
+		a.setTrayTooltip()
 	}
 }
 
