@@ -104,14 +104,16 @@ Variable name:  SSH_AUTH_SOCK
 Variable value: /mnt/c/Users/<UserName>/OmniSSHAgent.sock
 ```
 
-## Using with OpenSSH ssh-agent NamedPipe (1Password, etc.) in Proxy Mode
+## Using with OpenSSH ssh-agent NamedPipe (also compatible with 1Password) in Proxy Mode
 
-This mode uses [OpenSSH ssh-agent NamedPipe](https://learn.microsoft.com/windows-server/administration/openssh/openssh_keymanagement) or [1Password's ssh-agent function](https://developer.1password.com/docs/ssh/agent/) as a backend, as shown in the diagram below.
+This mode uses the [OpenSSH ssh-agent NamedPipe](https://learn.microsoft.com/windows-server/administration/openssh/openssh_keymanagement) as a backend. It can also be used with [1Password’s ssh-agent function](https://developer.1password.com/docs/ssh/agent/), as shown in the diagram below.  
 ![NamedPipe-Proxy-mode](https://github.com/masahide/OmniSSHAgent/blob/main/doc/NamedPipeProxyMode.png?raw=true)
 
-By enabling "Proxy mode for 1Password key-agent" in the configuration, OmniSSHAgent functions as a proxy for 1Password or OpenSSH's NamedPipe SSH agent.
+By enabling **"Proxy mode for OpenSSH agent (also compatible with 1Password)"** in the configuration, OmniSSHAgent functions as a proxy for Windows OpenSSH's NamedPipe SSH agent.  
+This mode also works with the 1Password key-agent.
 
-Note: When "Proxy mode for 1Password key-agent" is enabled, OmniSSHAgent operates solely as a proxy, meaning private keys cannot be added.
+**Note:** When "Proxy mode for OpenSSH agent (also compatible with 1Password)" is enabled, OmniSSHAgent operates solely as a proxy, and private keys cannot be added directly to it.
+
 
 ## Supported Key File Formats
 - PuTTY private key file (.ppk)
