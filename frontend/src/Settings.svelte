@@ -202,12 +202,12 @@
               <Switch
                 bind:checked={data.ProxyModeOfNamedPipe}
                 on:SMUISwitch:change={proxyToggle}
-                value="Enable proxy mode for 1Password key-agent"
+                value="Enable proxy mode for OpenSSH agent (also compatible with 1Password)"
               />
               <span
                 >{data.ProxyModeOfNamedPipe
-                  ? "Enable proxy mode for 1Password key-agent"
-                  : "Disable proxy mode for 1Password key-agent"}</span
+                  ? "Enable proxy mode for OpenSSH agent (also compatible with 1Password)"
+                  : "Disable proxy mode for OpenSSH agent (also compatible with 1Password)"}</span
               >
             </FormField>
           </div>
