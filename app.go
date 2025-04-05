@@ -8,6 +8,9 @@ import (
 	"path/filepath"
 	"sync"
 
+	"golang.org/x/crypto/ssh"
+	"golang.org/x/crypto/ssh/agent"
+
 	"github.com/masahide/OmniSSHAgent/pkg/cygwinsocket"
 	"github.com/masahide/OmniSSHAgent/pkg/namedpipe"
 	"github.com/masahide/OmniSSHAgent/pkg/pageant"
@@ -34,9 +37,17 @@ func NewApp() *App {
 	return &App{}
 }
 
+func (a *App) setTrayTooltip() {
+	tooltip := AppName
+	if keys, err := a.keyRing.KeyList(); err == nil {
+		tooltip = fmt.Sprintf("%s - %d keys loaded", tooltip, len(keys))
+	}
+	a.ti.SetTooltip(tooltip)
+}
+
 func (a *App) systrayOnReady() {
 	a.ti.SetTitle(AppName)
-	a.ti.SetTooltip(AppName)
+	a.setTrayTooltip()
 	mShowWindow := a.ti.AddMenuItem("ShowWindow", "Show main window")
 	mQuit := a.ti.AddMenuItem("Quit", "Quit the whole app")
 	mLogCheckBox := a.ti.AddMenuItemCheckbox("Debug log", "Enable debug log file output", false)
@@ -134,7 +145,31 @@ func (a *App) notice(action string, data interface{}) {
 	case "Add", "Remove", "RemoveAll":
 		//a.ti.ShowBalloonNotification(action, sshutil.JSONDump(data))
 		runtime.EventsEmit(a.ctx, "LoadKeysEvent")
+
+	case "Added", "Removed", "RemovedAll":
+		a.setTrayTooltip()
+
+	case "Sign", "SignWithFlags":
+		switch t := data.(type) {
+		case *agent.Key:
+			if err := a.onSign(t); err != nil {
+				log.Printf("cannot find key to print: %v\n", err)
+			}
+		case ssh.PublicKey:
+			log.Printf("unexpected ssh.PublicKey\n")
+		}
 	}
+}
+
+func (a *App) onSign(pubkey *agent.Key) error {
+	privkey := a.keyRing.FindPrivKey(pubkey)
+	if privkey == nil {
+		return errors.New("private key not found")
+	}
+
+	a.ti.ShowBalloonNotification(wintray.ID,
+		fmt.Sprintf("SSH Key '%s' was used", privkey.PublicKey.Comment))
+	return nil
 }
 
 func (a *App) OpenFile() (string, error) {
