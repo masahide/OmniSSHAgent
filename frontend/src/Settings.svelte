@@ -33,6 +33,7 @@
     NamedPipeAgent: false,
     UnixSocketAgent: false,
     CygWinAgent: false,
+    ShowBalloon: false,
     UnixSocketPath: "",
     CygWinSocketPath: "",
     ProxyModeOfNamedPipe: false,
@@ -100,6 +101,19 @@
                 >{data.StartHidden
                   ? "Hide the window on launch"
                   : "Show window on launch"}</span
+              >
+            </FormField>
+          </div>
+          <div>
+            <FormField>
+              <Switch
+                bind:checked={data.ShowBalloon}
+                value="Show a balloon notification when an SSH key is used"
+              />
+              <span
+                >{data.ShowBalloon
+                  ? "Show a balloon notification when an SSH key is used"
+                  : "Do not show a balloon notification when an SSH key is used"}</span
               >
             </FormField>
           </div>

@@ -26,6 +26,7 @@ type SaveData struct {
 	NamedPipeAgent   bool
 	UnixSocketAgent  bool
 	CygWinAgent      bool
+	ShowBalloon      bool
 	UnixSocketPath   string
 	CygWinSocketPath string
 
@@ -46,6 +47,7 @@ func initSetting() SaveData {
 		NamedPipeAgent:   true,
 		UnixSocketAgent:  true,
 		CygWinAgent:      true,
+		ShowBalloon:      true,
 		UnixSocketPath:   filepath.Join(home, "OmniSSHAgent.sock"),
 		CygWinSocketPath: filepath.Join(home, "OmniSSHCygwin.sock"),
 

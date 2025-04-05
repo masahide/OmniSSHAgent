@@ -167,8 +167,14 @@ func (a *App) onSign(pubkey *agent.Key) error {
 		return errors.New("private key not found")
 	}
 
-	a.ti.ShowBalloonNotification(wintray.ID,
-		fmt.Sprintf("SSH Key '%s' was used", privkey.PublicKey.Comment))
+	name := privkey.PublicKey.Comment
+	if len(name) == 0 {
+		name = truncateString(privkey.PublicKey.SHA256)
+	}
+	msg := fmt.Sprintf("SSH Key '%s' was used", name)
+	if a.settings.ShowBalloon {
+		a.ti.ShowBalloonNotification(wintray.ID, msg)
+	}
 	return nil
 }
 
@@ -256,7 +262,15 @@ func (a *App) Save(s store.SaveData) error {
 	a.settings.SaveData.UnixSocketAgent = s.UnixSocketAgent
 	a.settings.SaveData.UnixSocketPath = s.UnixSocketPath
 	a.settings.SaveData.CygWinAgent = s.CygWinAgent
+	a.settings.SaveData.ShowBalloon = s.ShowBalloon
 	a.settings.SaveData.CygWinSocketPath = s.CygWinSocketPath
 	a.settings.SaveData.ProxyModeOfNamedPipe = s.ProxyModeOfNamedPipe
 	return a.settings.Save()
+}
+
+func truncateString(s string) string {
+	if len(s) <= 16 {
+		return s
+	}
+	return s[:16] + "..."
 }

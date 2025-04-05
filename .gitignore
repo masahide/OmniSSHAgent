@@ -1,3 +1,10 @@
 build/bin/
 wailsjs/
 hack/node_modules/
+omni-socat.zip
+build/windows/wails.exe.manifest
+cmd/agent-bench/agent-bench
+cmd/agent-bench/agent-bench.exe
+test*/
+pkg/muxconn
+pkg/stdioconn
