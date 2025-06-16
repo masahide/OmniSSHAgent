@@ -59,8 +59,16 @@ func main() {
 		log.Fatal(err.Error())
 	}
 
+	userCacheDir, err := os.UserCacheDir()
+	if err == nil {
+		userCacheDir = filepath.Join(userCacheDir, getExeName())
+	} else {
+		log.Printf("cannot set user cache dir for Web View: %v", err)
+		userCacheDir = ""
+	}
+
 	// Create application with options
-	err := wails.Run(&options.App{
+	err = wails.Run(&options.App{
 		Title:             AppName,
 		Width:             900,
 		Height:            900,
@@ -84,6 +92,7 @@ func main() {
 		},
 		// Windows platform specific options
 		Windows: &windows.Options{
+			WebviewUserDataPath:  userCacheDir,
 			WebviewIsTransparent: false,
 			WindowIsTranslucent:  false,
 			DisableWindowIcon:    false,
