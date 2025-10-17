@@ -9,6 +9,7 @@ import (
 	"log"
 	"os"
 	"reflect"
+	"runtime"
 	"syscall"
 	"unsafe"
 
@@ -166,6 +167,9 @@ func initInstance(hInstance winapi.HINSTANCE, nCmdShow int) bool {
 }
 
 func (a *Pageant) RunAgent() {
+	runtime.LockOSThread()
+	defer runtime.UnlockOSThread()
+
 	hInstance := winapi.GetModuleHandle(nil)
 	a.myRegisterClass(hInstance)
 
