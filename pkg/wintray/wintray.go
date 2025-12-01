@@ -509,17 +509,22 @@ func (ti *TrayIcon) Run(onReady, onExit func()) {
 	//winapi.ShowWindow(ti.hwnd, winapi.SW_HIDE)
 	onReady()
 	defer onExit()
+	runtime.LockOSThread()
+	defer runtime.UnlockOSThread()
 
-	var msg winapi.MSG
+	msg := (*winapi.MSG)(unsafe.Pointer(winapi.GlobalAlloc(0, unsafe.Sizeof(winapi.MSG{}))))
+	defer winapi.GlobalFree(winapi.HGLOBAL(unsafe.Pointer(msg)))
 	for {
-		r := winapi.GetMessage(&msg, 0, 0, 0)
+		r := winapi.GetMessage(msg, 0, 0, 0)
 		if r == 0 {
 			ti.Dispose()
 			break
 		}
-		winapi.TranslateMessage(&msg)
-		winapi.DispatchMessage(&msg)
+		winapi.TranslateMessage(msg)
+		winapi.DispatchMessage(msg)
 	}
+
+	runtime.KeepAlive(&msg)
 }
 
 func (ti *TrayIcon) Quit() {
