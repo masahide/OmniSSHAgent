@@ -139,10 +139,7 @@ func (a *Pageant) handleCopyMessage(cdata *copyDataStruct) error {
 			io.Writer
 		}{bytes.NewBuffer(m), &out},
 	)
-	if err == nil {
-		return fmt.Errorf("ServeAgent err:%v", err)
-	}
-	if err != io.EOF {
+	if err != nil && err != io.EOF {
 		return fmt.Errorf("ServeAgent err:%w", err)
 	}
 	m = ptr2Array(addr, out.Len())

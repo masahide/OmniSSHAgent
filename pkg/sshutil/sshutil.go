@@ -221,7 +221,23 @@ func NewKeyRing(s *store.Settings) *KeyRing {
 		k.keyring = extendedAgent
 		return k
 	}
-	return nil
+	// Wrap the basic Agent with ExtendedAgent methods
+	k.keyring = &extendedKeyringWrapper{Agent: a}
+	return k
+}
+
+// extendedKeyringWrapper wraps agent.Agent to implement agent.ExtendedAgent
+type extendedKeyringWrapper struct {
+	agent.Agent
+}
+
+func (w *extendedKeyringWrapper) SignWithFlags(key ssh.PublicKey, data []byte, flags agent.SignatureFlags) (*ssh.Signature, error) {
+	// Fall back to Sign without flags
+	return w.Sign(key, data)
+}
+
+func (w *extendedKeyringWrapper) Extension(extensionType string, contents []byte) ([]byte, error) {
+	return nil, errors.New("extension not supported")
 }
 
 func fpMD5(blob []byte) string {
@@ -339,7 +355,8 @@ func (k *KeyRing) notice(action string, data interface{}) {
 	if k.NotifyCallback == nil {
 		return
 	}
-	k.NotifyCallback(action, data)
+	// Call callback asynchronously to prevent deadlocks
+	go k.NotifyCallback(action, data)
 }
 
 func (k *KeyRing) List() ([]*agent.Key, error) {
@@ -382,7 +399,7 @@ func (k *KeyRing) Unlock(passphrase []byte) error {
 func (k *KeyRing) Signers() ([]ssh.Signer, error) {
 	k.notice("Signers", nil)
 	defer k.notice("Signers", nil)
-	return k.Signers()
+	return k.keyring.Signers()
 }
 func (k *KeyRing) SignWithFlags(key ssh.PublicKey, data []byte, flags agent.SignatureFlags) (*ssh.Signature, error) {
 	//k.notice("SignWithFlags", map[string]interface{}{"publickey": key.Marshal(), "data": data, "flags": flags})

@@ -25,11 +25,12 @@ import (
 
 // App application struct
 type App struct {
-	ctx      context.Context
-	ti       *wintray.TrayIcon
-	keyRing  *sshutil.KeyRing
-	settings *store.Settings
-	wg       sync.WaitGroup
+	ctx          context.Context
+	ti           *wintray.TrayIcon
+	keyRing      *sshutil.KeyRing
+	settings     *store.Settings
+	wg           sync.WaitGroup
+	cancelAgents context.CancelFunc
 }
 
 // NewApp creates a new App application struct
@@ -112,6 +113,11 @@ func (a *App) startup(ctx context.Context) {
 		log.Printf("KeyRing.AddKeys err: %s", err)
 	}
 	a.keyRing.NotifyCallback = a.notice
+
+	// Create a context for agent goroutines so they can be cancelled on shutdown
+	_, cancel := context.WithCancel(context.Background())
+	a.cancelAgents = cancel
+
 	pa := &pageant.Pageant{
 		ExtendedAgent: a.keyRing,
 		AppName:       AppName,
@@ -119,24 +125,46 @@ func (a *App) startup(ctx context.Context) {
 		CheckFunc:     a.showWindow,
 	}
 	if a.settings.PageantAgent {
-		go pa.RunAgent()
+		a.wg.Add(1)
+		go func() {
+			defer a.wg.Done()
+			pa.RunAgent()
+		}()
 	}
 	log.Println("Starting pageant...")
 	if a.settings.NamedPipeAgent {
 		pipeName := ""
 		na := &namedpipe.NamedPipe{ExtendedAgent: a.keyRing, Debug: debug, Name: pipeName}
 		log.Println("Starting NamedPipe agent..")
-		go na.RunAgent()
+		a.wg.Add(1)
+		go func() {
+			defer a.wg.Done()
+			if err := na.RunAgent(); err != nil {
+				log.Printf("NamedPipe agent error: %v", err)
+			}
+		}()
 	}
 	if a.settings.UnixSocketAgent {
 		ua := &unix.DomainSock{ExtendedAgent: a.keyRing, Debug: debug, Path: a.settings.UnixSocketPath}
-		go ua.RunAgent()
 		log.Println("Start Unix domain socket agent..")
+		a.wg.Add(1)
+		go func() {
+			defer a.wg.Done()
+			if err := ua.RunAgent(); err != nil {
+				log.Printf("Unix socket agent error: %v", err)
+			}
+		}()
 	}
 	if a.settings.CygWinAgent {
 		ca := &cygwinsocket.CygwinSock{ExtendedAgent: a.keyRing, Debug: debug, Path: a.settings.CygWinSocketPath}
-		go ca.RunAgent()
 		log.Println("Starting Cygwin unix domain socket agent..")
+		a.wg.Add(1)
+		go func() {
+			defer a.wg.Done()
+			if err := ca.RunAgent(); err != nil {
+				log.Printf("Cygwin socket agent error: %v", err)
+			}
+		}()
 	}
 }
 
@@ -207,6 +235,9 @@ func (a *App) Quit() {
 // shutdown はruntime.Quitから呼ばれる
 func (a *App) shutdown(ctx context.Context) {
 	log.Print("shutdown")
+	if a.cancelAgents != nil {
+		a.cancelAgents()
+	}
 	a.ti.Quit()
 	a.wg.Wait()
 }

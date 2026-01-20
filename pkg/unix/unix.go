@@ -8,6 +8,7 @@ import (
 	"os"
 	"path/filepath"
 	"syscall"
+	"time"
 
 	"golang.org/x/crypto/ssh/agent"
 )
@@ -59,6 +60,8 @@ func (a *DomainSock) RunAgent() error {
 
 func (a *DomainSock) handle(conn net.Conn) {
 	defer conn.Close()
+	// Set a read deadline to prevent indefinite blocking on stale connections
+	conn.SetReadDeadline(time.Now().Add(5 * time.Minute))
 	err := agent.ServeAgent(a, conn)
 	if err != nil {
 		if err == io.EOF {
