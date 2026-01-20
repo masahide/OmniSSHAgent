@@ -13,7 +13,7 @@ jobs:
       - name: Install NSIS
         run: |
           iwr -useb get.scoop.sh -outfile 'install.ps1'
-          .\install.ps1 -RunAsAdmin
+          .\install.ps1 -Skip
           scoop update
           scoop bucket add extras
           scoop install nsis
