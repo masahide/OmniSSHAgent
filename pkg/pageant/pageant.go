@@ -9,6 +9,7 @@ import (
 	"log"
 	"os"
 	"reflect"
+	"runtime"
 	"syscall"
 	"unsafe"
 
@@ -149,29 +150,39 @@ func (a *Pageant) handleCopyMessage(cdata *copyDataStruct) error {
 	return nil
 }
 
-func initInstance(hInstance winapi.HINSTANCE, nCmdShow int) bool {
+func initInstance(hInstance winapi.HINSTANCE, nCmdShow int) error {
+	classNameUTF16, err := syscall.UTF16PtrFromString(className)
+	if err != nil {
+		return err
+	}
+
 	hWnd := winapi.CreateWindowEx(
 		winapi.WS_EX_TRANSPARENT|winapi.WS_EX_TOOLWINDOW|winapi.WS_EX_TOPMOST|winapi.WS_EX_NOACTIVATE,
-		syscall.StringToUTF16Ptr(className),
-		syscall.StringToUTF16Ptr(className),
+		classNameUTF16,
+		classNameUTF16,
 		winapi.WS_POPUP,
 		0, 0, 0, 0,
 		0, 0, hInstance, nil)
 	if hWnd == 0 {
-		return false
+		return errors.New("cannot create window")
 	}
 
 	winapi.ShowWindow(hWnd, winapi.SW_SHOW)
-	return true
+	return nil
 }
 
 func (a *Pageant) RunAgent() {
+	runtime.LockOSThread()
+	defer runtime.UnlockOSThread()
+
 	hInstance := winapi.GetModuleHandle(nil)
 	a.myRegisterClass(hInstance)
 
-	if initInstance(hInstance, winapi.SW_SHOW) == false {
+	if err := initInstance(hInstance, winapi.SW_SHOW); err != nil {
+		log.Printf("pageant: %v\n", err)
 		return
 	}
+
 	var msg winapi.MSG
 	for winapi.GetMessage(&msg, 0, 0, 0) != 0 {
 		winapi.TranslateMessage(&msg)
