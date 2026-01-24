@@ -16,6 +16,7 @@ import (
 
 	"github.com/cwchiu/go-winapi"
 	"golang.org/x/crypto/ssh/agent"
+	"golang.org/x/sys/windows"
 )
 
 const (
@@ -24,7 +25,13 @@ const (
 	checkID   = 0x02e08fc7
 )
 
-var postQuitMessage = winapi.PostQuitMessage
+var (
+	procPostThreadMessage = syscall.NewLazyDLL("user32.dll").NewProc("PostThreadMessageW")
+	postQuitMessage       = func(threadID uint32) bool {
+		ret, _, _ := procPostThreadMessage.Call(uintptr(threadID), uintptr(winapi.WM_QUIT), 0, 0)
+		return ret != 0
+	}
+)
 
 type Pageant struct {
 	agent.ExtendedAgent
@@ -186,7 +193,8 @@ func (a *Pageant) RunAgent(ctx context.Context) {
 		return
 	}
 
-	stopWatcher := startCancelWatcher(ctx)
+	threadID := windows.GetCurrentThreadId()
+	stopWatcher := startCancelWatcher(ctx, threadID)
 	defer stopWatcher()
 
 	var msg winapi.MSG
@@ -199,7 +207,7 @@ func (a *Pageant) RunAgent(ctx context.Context) {
 	}
 }
 
-func startCancelWatcher(ctx context.Context) func() {
+func startCancelWatcher(ctx context.Context, threadID uint32) func() {
 	if ctx == nil {
 		ctx = context.Background()
 	}
@@ -207,7 +215,7 @@ func startCancelWatcher(ctx context.Context) func() {
 	go func() {
 		select {
 		case <-ctx.Done():
-			postQuitMessage(0)
+			postQuitMessage(threadID)
 		case <-exitCh:
 		}
 	}()

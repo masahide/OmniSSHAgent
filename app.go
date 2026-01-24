@@ -32,6 +32,7 @@ type App struct {
 	settings     *store.Settings
 	wg           sync.WaitGroup
 	cancelAgents context.CancelFunc
+	shutdownOnce sync.Once
 }
 
 // NewApp creates a new App application struct
@@ -236,14 +237,16 @@ func (a *App) Quit() {
 
 // shutdown はruntime.Quitから呼ばれる
 func (a *App) shutdown(ctx context.Context) {
-	log.Print("shutdown")
-	if a.cancelAgents != nil {
-		a.cancelAgents()
-	}
-	if a.ti != nil {
-		a.ti.Quit()
-	}
-	a.wg.Wait()
+	a.shutdownOnce.Do(func() {
+		log.Print("shutdown")
+		if a.cancelAgents != nil {
+			a.cancelAgents()
+		}
+		if a.ti != nil {
+			a.ti.Quit()
+		}
+		a.wg.Wait()
+	})
 }
 
 func (a *App) AddLocalFile(pk sshkey.PrivateKeyFile) error {

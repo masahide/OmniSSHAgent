@@ -2,6 +2,7 @@ package filelog
 
 import (
 	"context"
+	"log"
 	"os"
 	"path/filepath"
 	"sync"
@@ -37,27 +38,17 @@ func New(appName string, bufferSize int) *FileLog {
 
 func (fl *FileLog) writeWorker() {
 	var f *os.File
+	defer fl.wgWriteWorker.Done()
 	for {
 		select {
-		case p := <-fl.writeCh:
-			f = fl.ensureFileOpen(f)
-			if f != nil {
-				_, _ = f.Write(p)
-			}
 		case <-fl.ctx.Done():
-			close(fl.writeCh)
-			// Drain remaining data in writeCh
-			for p := range fl.writeCh {
-				f = fl.ensureFileOpen(f)
-				if f != nil {
-					_, _ = f.Write(p)
-				}
-			}
+			fl.drainWriteCh(&f)
 			if f != nil {
 				_ = f.Close()
 			}
-			fl.wgWriteWorker.Done()
 			return
+		case p := <-fl.writeCh:
+			fl.writeBytes(p, &f)
 		}
 	}
 }
@@ -67,11 +58,13 @@ func (fl *FileLog) ensureFileOpen(f *os.File) *os.File {
 		var err error
 		filename, err := fl.createFilePath()
 		if err != nil {
+			log.Printf("filelog: failed to create log path: %v", err)
 			return nil
 		}
 		fl.FilePath = filename
 		f, err = fl.openFile(filename)
 		if err != nil {
+			log.Printf("filelog: failed to open %s: %v", filename, err)
 			return nil
 		}
 	}
@@ -108,15 +101,11 @@ func (fl *FileLog) createFilePath() (string, error) {
 
 // Write writes the provided byte slice to the log file, creating the file if necessary.
 func (fl *FileLog) Write(p []byte) (n int, err error) {
-	if !fl.GetEnable() {
-		return os.Stderr.Write(p)
+	if err := fl.ctx.Err(); err != nil {
+		return 0, err
 	}
-	select {
-	case fl.writeCh <- p:
-		return len(p), nil
-	case <-fl.ctx.Done():
-		return 0, fl.ctx.Err()
-	}
+	fl.writeCh <- p
+	return len(p), nil
 }
 
 // SetEnable sets the fl.Enable flag in a thread-safe manner using atomic operations.
@@ -131,4 +120,28 @@ func (fl *FileLog) SetEnable(enable bool) {
 // GetEnable returns the current value of the fl.Enable flag in a thread-safe manner using atomic operations.
 func (fl *FileLog) GetEnable() bool {
 	return atomic.LoadInt32(&fl.enableAtomic) != 0
+}
+
+func (fl *FileLog) drainWriteCh(f **os.File) {
+	for {
+		select {
+		case p := <-fl.writeCh:
+			fl.writeBytes(p, f)
+		default:
+			return
+		}
+	}
+}
+
+func (fl *FileLog) writeBytes(p []byte, f **os.File) {
+	if fl.GetEnable() {
+		*f = fl.ensureFileOpen(*f)
+		if *f == nil {
+			_, _ = os.Stderr.Write(p)
+			return
+		}
+		_, _ = (*f).Write(p)
+		return
+	}
+	_, _ = os.Stderr.Write(p)
 }
