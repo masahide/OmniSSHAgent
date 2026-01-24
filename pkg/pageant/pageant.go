@@ -2,6 +2,7 @@ package pageant
 
 import (
 	"bytes"
+	"context"
 	"encoding/binary"
 	"errors"
 	"fmt"
@@ -22,6 +23,8 @@ const (
 	id        = 0x804e50ba
 	checkID   = 0x02e08fc7
 )
+
+var postQuitMessage = winapi.PostQuitMessage
 
 type Pageant struct {
 	agent.ExtendedAgent
@@ -168,7 +171,10 @@ func initInstance(hInstance winapi.HINSTANCE, nCmdShow int) error {
 	return nil
 }
 
-func (a *Pageant) RunAgent() {
+func (a *Pageant) RunAgent(ctx context.Context) {
+	if ctx == nil {
+		ctx = context.Background()
+	}
 	runtime.LockOSThread()
 	defer runtime.UnlockOSThread()
 
@@ -180,6 +186,9 @@ func (a *Pageant) RunAgent() {
 		return
 	}
 
+	stopWatcher := startCancelWatcher(ctx)
+	defer stopWatcher()
+
 	var msg winapi.MSG
 	for winapi.GetMessage(&msg, 0, 0, 0) != 0 {
 		winapi.TranslateMessage(&msg)
@@ -187,5 +196,22 @@ func (a *Pageant) RunAgent() {
 		if msg.Message == winapi.WM_QUIT {
 			break
 		}
+	}
+}
+
+func startCancelWatcher(ctx context.Context) func() {
+	if ctx == nil {
+		ctx = context.Background()
+	}
+	exitCh := make(chan struct{})
+	go func() {
+		select {
+		case <-ctx.Done():
+			postQuitMessage(0)
+		case <-exitCh:
+		}
+	}()
+	return func() {
+		close(exitCh)
 	}
 }

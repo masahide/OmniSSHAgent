@@ -1,6 +1,7 @@
 package unix
 
 import (
+	"context"
 	"fmt"
 	"io"
 	"log"
@@ -10,6 +11,7 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/masahide/OmniSSHAgent/pkg/agentlistener"
 	"golang.org/x/crypto/ssh/agent"
 )
 
@@ -19,7 +21,10 @@ type DomainSock struct {
 	Path  string
 }
 
-func (a *DomainSock) RunAgent() error {
+func (a *DomainSock) RunAgent(ctx context.Context) error {
+	if ctx == nil {
+		ctx = context.Background()
+	}
 
 	if len(a.Path) == 0 {
 		home, err := os.UserHomeDir()
@@ -43,23 +48,31 @@ func (a *DomainSock) RunAgent() error {
 	if a.Debug {
 		log.Printf("Open unix domain socket: %s", a.Path)
 	}
-	for {
-		conn, err := sock.Accept()
-		if err != nil {
-			if err == io.EOF {
-				return nil
-			}
-			return fmt.Errorf("pipe.Accept err: %w", err)
-		}
+	if err := agentlistener.Serve(ctx, sock, func(ctx context.Context, conn net.Conn) {
 		if a.Debug {
 			log.Println("start DomainSock handler")
 		}
-		go a.handle(conn)
+		a.handle(ctx, conn)
+	}); err != nil {
+		return fmt.Errorf("pipe.Accept err: %w", err)
 	}
+	return nil
 }
 
-func (a *DomainSock) handle(conn net.Conn) {
+func (a *DomainSock) handle(ctx context.Context, conn net.Conn) {
 	defer conn.Close()
+	if ctx == nil {
+		ctx = context.Background()
+	}
+	done := make(chan struct{})
+	go func() {
+		select {
+		case <-ctx.Done():
+			conn.Close()
+		case <-done:
+		}
+	}()
+	defer close(done)
 	// Set a read deadline to prevent indefinite blocking on stale connections
 	conn.SetReadDeadline(time.Now().Add(5 * time.Minute))
 	err := agent.ServeAgent(a, conn)

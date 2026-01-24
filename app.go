@@ -26,6 +26,7 @@ import (
 // App application struct
 type App struct {
 	ctx          context.Context
+	agentCtx     context.Context
 	ti           *wintray.TrayIcon
 	keyRing      *sshutil.KeyRing
 	settings     *store.Settings
@@ -115,7 +116,8 @@ func (a *App) startup(ctx context.Context) {
 	a.keyRing.NotifyCallback = a.notice
 
 	// Create a context for agent goroutines so they can be cancelled on shutdown
-	_, cancel := context.WithCancel(context.Background())
+	agentCtx, cancel := context.WithCancel(context.Background())
+	a.agentCtx = agentCtx
 	a.cancelAgents = cancel
 
 	pa := &pageant.Pageant{
@@ -128,7 +130,7 @@ func (a *App) startup(ctx context.Context) {
 		a.wg.Add(1)
 		go func() {
 			defer a.wg.Done()
-			pa.RunAgent()
+			pa.RunAgent(a.agentCtx)
 		}()
 	}
 	log.Println("Starting pageant...")
@@ -139,7 +141,7 @@ func (a *App) startup(ctx context.Context) {
 		a.wg.Add(1)
 		go func() {
 			defer a.wg.Done()
-			if err := na.RunAgent(); err != nil {
+			if err := na.RunAgent(a.agentCtx); err != nil {
 				log.Printf("NamedPipe agent error: %v", err)
 			}
 		}()
@@ -150,7 +152,7 @@ func (a *App) startup(ctx context.Context) {
 		a.wg.Add(1)
 		go func() {
 			defer a.wg.Done()
-			if err := ua.RunAgent(); err != nil {
+			if err := ua.RunAgent(a.agentCtx); err != nil {
 				log.Printf("Unix socket agent error: %v", err)
 			}
 		}()
@@ -161,7 +163,7 @@ func (a *App) startup(ctx context.Context) {
 		a.wg.Add(1)
 		go func() {
 			defer a.wg.Done()
-			if err := ca.RunAgent(); err != nil {
+			if err := ca.RunAgent(a.agentCtx); err != nil {
 				log.Printf("Cygwin socket agent error: %v", err)
 			}
 		}()
@@ -238,7 +240,9 @@ func (a *App) shutdown(ctx context.Context) {
 	if a.cancelAgents != nil {
 		a.cancelAgents()
 	}
-	a.ti.Quit()
+	if a.ti != nil {
+		a.ti.Quit()
+	}
 	a.wg.Wait()
 }
 

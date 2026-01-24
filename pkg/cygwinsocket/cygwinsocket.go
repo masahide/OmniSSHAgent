@@ -2,6 +2,7 @@ package cygwinsocket
 
 import (
 	"bytes"
+	"context"
 	"encoding/binary"
 	"encoding/hex"
 	"fmt"
@@ -14,6 +15,7 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/masahide/OmniSSHAgent/pkg/agentlistener"
 	"golang.org/x/crypto/ssh/agent"
 	"golang.org/x/sys/windows"
 )
@@ -29,7 +31,10 @@ func New() *CygwinSock {
 	return &CygwinSock{}
 }
 
-func (c *CygwinSock) RunAgent() error {
+func (c *CygwinSock) RunAgent(ctx context.Context) error {
+	if ctx == nil {
+		ctx = context.Background()
+	}
 	if len(c.Path) == 0 {
 		home, err := os.UserHomeDir()
 		if err != nil {
@@ -64,21 +69,15 @@ func (c *CygwinSock) RunAgent() error {
 		}
 		return err
 	}
-	go func() {
-		for {
-			conn, err := c.listener.Accept()
-			if err != nil {
-				if c.Debug {
-					log.Printf("listener.Accept err:%s", err)
-				}
-				return
-			}
-			if err := c.handle(conn, nonce); err != nil {
-				log.Println(err)
-			}
+	defer c.listener.Close()
 
+	if err := agentlistener.Serve(ctx, c.listener, func(ctx context.Context, conn net.Conn) {
+		if err := c.handle(ctx, conn, nonce); err != nil {
+			log.Println(err)
 		}
-	}()
+	}); err != nil {
+		return fmt.Errorf("listener.Accept err:%w", err)
+	}
 	return nil
 }
 
@@ -90,8 +89,20 @@ func nonce2s(buf []byte) string {
 	return strings.Join(hexstrs, "-")
 }
 
-func (c *CygwinSock) handle(conn net.Conn, nonce []byte) error {
+func (c *CygwinSock) handle(ctx context.Context, conn net.Conn, nonce []byte) error {
 	defer conn.Close()
+	if ctx == nil {
+		ctx = context.Background()
+	}
+	done := make(chan struct{})
+	go func() {
+		select {
+		case <-ctx.Done():
+			conn.Close()
+		case <-done:
+		}
+	}()
+	defer close(done)
 	// Set a read deadline to prevent indefinite blocking on stale connections
 	conn.SetReadDeadline(time.Now().Add(5 * time.Minute))
 	nonceR := make([]byte, 16)
