@@ -156,6 +156,10 @@ This mode also works with the 1Password key-agent.
 
 Passphrases are stored in the [Windows Credential Manager](https://support.microsoft.com/en-us/windows/accessing-credential-manager-1b5c916a-6a16-889f-8581-fc16e8165ac0).
 
+## Graceful shutdown
+
+When you quit the app, OmniSSHAgent now cancels every agent listener through a `context.Context`, closes the related sockets, and waits for the goroutines to finish. This prevents the old situation where `Quit` would hang because listeners were still blocking on `Accept`/`GetMessage`.
+
 ## Screenshots
 
 <img src="https://github.com/robertt-smg/OmniSSHAgent/blob/main/doc/screen.png?raw=true" width="500">

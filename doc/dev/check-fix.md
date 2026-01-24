@@ -50,6 +50,18 @@
   2. 接続ハンドラ (go a.handle(conn)) の goroutine も何らかの形でライフサイクルを管理／制限し、切断処理や Context キャンセルで確実に終了させる仕
      組みを導入して bug5 の根本原因に対処してください。
 
+  **対応済みステップ**
+
+  - `App` が `context.WithCancel` で `agentCtx` を保持し、`RunAgent(ctx)` にその `context` を渡すことで shutdown 時に `cancelAgents()` で全エージェントをキャンセルします（`app.go`）。
+  - NamedPipe/Unix/Cygwin の Accept ループを共通の `agentlistener.Serve` ヘルパーに切り出し、`ctx.Done()` でリスナーを止めつつ `wg` と接続ハンドラを終了させるようにしました（`pkg/agentlistener/listener.go`）。
+  - 各接続ハンドラも context を監視して `conn.Close()` するので `agent.ServeAgent` が長時間ブロックしません（`pkg/namedpipe/namedpipe.go`、`pkg/unix/unix.go`、`pkg/cygwinsocket/cygwinsocket.go`）。
+  - `app_test.go` と `pkg/agentlistener/listener_test.go` で `shutdown`→`cancelAgents`→`ctx.Done()` の流れを検証しています。
+
+### Ctrl+C / Quit 後の確認
+
+- `agentlistener.Serve` はキャンセル発生時に `agentlistener: listener closed due to context cancellation`、Accept 中の異常時に `agentlistener: Accept error: …` とログを出すようになったため、`Ctrl+C` / UI の `Quit` 操作で `shutdown` が呼ばれた際にそれぞれのリスナーが速やかに抜けていることをログで追えるようになっています。
+- Wails UI から Quit、または CLI で `Ctrl+C` すると `App.shutdown` 内で `cancelAgents()`→`wg.Wait()` の順で処理され、`pkg/agentlistener/listener.go` の出力がすべて出たらソケットはクローズ済みと判断できます。
+
 
 不具合4
 • 修正レビュー

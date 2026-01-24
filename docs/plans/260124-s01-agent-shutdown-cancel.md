@@ -68,6 +68,7 @@
 classDiagram
     class App {
         +context.Context ctx
+        +context.Context agentCtx
         +sync.WaitGroup wg
         +context.CancelFunc cancelAgents
         +shutdown(ctx context.Context)
@@ -103,16 +104,23 @@ sequenceDiagram
     participant App
     participant Agent as NamedPipe/Unix/Cygwin
     participant Handler as handler goroutine
+    participant Pageant as Win32 loop
 
     UI->>App: Quit request
-    App->>App: cancelAgents()
-    App->>Agent: RunAgent(ctx)
-    Agent->>Agent: select { <-ctx.Done(): stopAccept }
+    App->>Agent: RunAgent(ctx) / RunAgent(ctx)
+    App->>Pageant: RunAgent(ctx)
+    Agent->>Agent: accept loop select { <-ctx.Done(): close listener }
     Agent->>Handler: serve connection
     Handler->>Handler: select { <-ctx.Done(): conn.Close }
+    Pageant->>Pageant: GetMessage loop (-> PostQuitMessage on ctx.Done())
+    App->>App: cancelAgents()
+    Pageant->>Pageant: PostQuitMessage(0)
     Handler-->>App: wg.Done
+    Pageant-->>App: wg.Done
     Agent-->>App: wg.Done
 ```
+
+The Accept/handler loops now rely on the shared `agentlistener.Serve` helper so every `RunAgent` closes its listener on `ctx.Done()` before the per-connection goroutines also watch the same context and close their `net.Conn`s.
 
 ## 6. テスト戦略 Test Strategy
 ### 6.1 テストの種類
@@ -127,31 +135,31 @@ sequenceDiagram
 
 ## 7. 実装タスクリスト Implementation Plan
 ### Phase 1 設計と準備
-- [ ] 要件と仕様の確定 受け入れ条件とのすり合わせ（`docs/plans/260124-s01-agent-shutdown-cancel.md`）
-- [ ] インターフェース契約の確定 `RunAgent(ctx context.Context)` による契約と例の追加（`app.go`, `pkg/*`）
-- [ ] Mermaid図の作成 更新（上記クラス図とシーケンス図）
-- [ ] インターフェース 型定義の作成 `NamedPipe.RunAgent(ctx)` などのシグネチャ変更
-- [ ] テスト基盤の確認 `go test ./pkg/namedpipe ./pkg/unix ./pkg/cygwinsocket`
+- [x] 要件と仕様の確定 受け入れ条件とのすり合わせ（`docs/plans/260124-s01-agent-shutdown-cancel.md`）
+- [x] インターフェース契約の確定 `RunAgent(ctx context.Context)` による契約と例の追加（`app.go`, `pkg/*`）
+- [x] Mermaid図の作成 更新（上記クラス図とシーケンス図）
+- [x] インターフェース 型定義の作成 `NamedPipe.RunAgent(ctx)` などのシグネチャ変更
+- [x] テスト基盤の確認 `go test ./pkg/namedpipe ./pkg/unix ./pkg/cygwinsocket`
 
 ### Phase 2 機能名A (Agent shutdown cancellation) の実装
-- [ ] Test コンテキストキャンセルを模した `TestAppShutdownCancelsAgents` を作成（`app_test.go`）
-- [ ] Impl `RunAgent` に `context` を渡し `Accept` ループで `ctx.Done()` を選択、`listener.Close()` で終了させる
-- [ ] Refactor `NamedPipe`, `DomainSock`, `CygwinSock` 共通パターンを抽出（`cancelableListener` ヘルパーなど）
-- [ ] Integration `agent.ServeAgent` に接続後 `ctx` キャンセルで goroutine が抜けることを統合テスト化
-- [ ] Docs `App.shutdown` のキャンセル動作と `context` パラメータを README に追記
+- [x] Test コンテキストキャンセルを模した `TestAppShutdownCancelsAgents` を作成（`app_test.go`）
+- [x] Impl `RunAgent` に `context` を渡し `Accept` ループで `ctx.Done()` を選択、`listener.Close()` で終了させる
+- [x] Refactor `NamedPipe`, `DomainSock`, `CygwinSock` 共通パターンを抽出（`agentlistener.Serve` ヘルパーなど）
+- [x] Integration `agent.ServeAgent` に接続後 `ctx` キャンセルで goroutine が抜けることを統合テスト化（`pkg/agentlistener/listener_test.go`）
+- [x] Docs `App.shutdown` のキャンセル動作と `context` パラメータを README に追記
 
 ### Phase 3 機能名B (Pageant loop cancellation) の実装
-- [ ] Test Pageant の Win32 ループに `context` を注入したモックテストを用意
-- [ ] Impl `Pageant.RunAgent(ctx)` で `PostQuitMessage` を `ctx.Done()` で送る実装
-- [ ] Refactor `App.startup` で `context.WithCancel` を共有して `wg` と一緒に管理
-- [ ] Integration `App` を起動して `CancelFunc` 呼び出し後、`wg.Wait` まで到達する統合テスト
-- [ ] Docs 変更点を `doc/dev/` や `AGENTS.md` に追記
+- [x] Test Pageant の Win32 ループに `context` を注入したモックテストを用意
+- [x] Impl `Pageant.RunAgent(ctx)` で `PostQuitMessage` を `ctx.Done()` で送る実装
+- [x] Refactor `App.startup` で `context.WithCancel` を共有して `wg` と一緒に管理
+- [x] Integration `App` を起動して `CancelFunc` 呼び出し後、`wg.Wait` まで到達する統合テスト
+- [x] Docs 変更点を `doc/dev/` や `AGENTS.md` に追記
 
 ### Phase 4 統合と検証
-- [ ] 全体テストの実行 `go test ./...`
-- [ ] エッジケースの動作確認 `Ctrl+C`/`Quit` 後のソケットクローズ
-- [ ] ログと例外の確認 キャンセル時の `Accept` エラーの logging 方針を確認
-- [ ] ドキュメント更新 `README` や `AGENTS.md` に shut down 手順を追記
+- [x] 全体テストの実行 `go test ./...`
+- [x] エッジケースの動作確認 `Ctrl+C`/`Quit` 後のソケットクローズ（`agentlistener.Serve` のログを確認し、App.shutdown の `wg.Wait` が復帰すること）
+- [x] ログと例外の確認 キャンセル時の `Accept` エラーの logging 方針を確認（`agentlistener: listener closed due to context cancellation` と `agentlistener: Accept error` ログを追加）
+- [x] ドキュメント更新 `README` や `AGENTS.md` に shut down 手順を追記
 
 ## 8. 完了の定義 Definition of Done
 ### 8.1 機能DoD Functional DoD

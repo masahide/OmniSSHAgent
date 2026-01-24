@@ -1,6 +1,7 @@
 package namedpipe
 
 import (
+	"context"
 	"fmt"
 	"io"
 	"log"
@@ -8,6 +9,7 @@ import (
 	"time"
 
 	"github.com/Microsoft/go-winio"
+	"github.com/masahide/OmniSSHAgent/pkg/agentlistener"
 	"golang.org/x/crypto/ssh/agent"
 )
 
@@ -17,7 +19,10 @@ type NamedPipe struct {
 	Name  string
 }
 
-func (a *NamedPipe) RunAgent() error {
+func (a *NamedPipe) RunAgent(ctx context.Context) error {
+	if ctx == nil {
+		ctx = context.Background()
+	}
 
 	pipePath := map[bool]string{
 		true:  `\\.\pipe\openssh-ssh-agent`,
@@ -32,23 +37,31 @@ func (a *NamedPipe) RunAgent() error {
 	if a.Debug {
 		log.Printf("Open named-pipe: %s", pipePath)
 	}
-	for {
-		conn, err := pipe.Accept()
-		if err != nil {
-			if err == io.EOF {
-				return nil
-			}
-			return fmt.Errorf("pipe.Accept err: %w", err)
-		}
+	if err := agentlistener.Serve(ctx, pipe, func(ctx context.Context, conn net.Conn) {
 		if a.Debug {
 			log.Println("start namedPipe handler")
 		}
-		go a.handle(conn)
+		a.handle(ctx, conn)
+	}); err != nil {
+		return fmt.Errorf("pipe.Accept err: %w", err)
 	}
+	return nil
 }
 
-func (a *NamedPipe) handle(conn net.Conn) {
+func (a *NamedPipe) handle(ctx context.Context, conn net.Conn) {
 	defer conn.Close()
+	if ctx == nil {
+		ctx = context.Background()
+	}
+	done := make(chan struct{})
+	go func() {
+		select {
+		case <-ctx.Done():
+			conn.Close()
+		case <-done:
+		}
+	}()
+	defer close(done)
 	// Set a read deadline to prevent indefinite blocking on stale connections
 	conn.SetReadDeadline(time.Now().Add(5 * time.Minute))
 	err := agent.ServeAgent(a, conn)
