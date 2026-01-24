@@ -13,7 +13,7 @@ jobs:
       - name: Install NSIS
         run: |
           iwr -useb get.scoop.sh -outfile 'install.ps1'
-          .\install.ps1 -RunAsAdmin
+          .\install.ps1 -Skip
           scoop update
           scoop bucket add extras
           scoop install nsis
@@ -23,6 +23,7 @@ jobs:
           node-version: ${{ env.NODE_VERSION }}
       - name: Print NSIS version
         run: |
+          $env:PATH += ";$env:USERPROFILE\scoop\shims"
           echo makensis -VERSION  >> $env:GITHUB_STEP_SUMMARY
           makensis -VERSION  >> $env:GITHUB_STEP_SUMMARY
       - uses: actions/setup-go@v4
@@ -35,6 +36,7 @@ jobs:
           go get ./...
       - name: build
         run: |
+          $env:PATH += ";$env:USERPROFILE\scoop\shims"
           wails build -nsis
           go build -o build/bin/omni-socat.exe ./cmd/omni-socat
           go build -o build/bin/agent-bench.exe ./cmd/agent-bench

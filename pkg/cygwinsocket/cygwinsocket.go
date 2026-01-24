@@ -11,6 +11,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"time"
 
 	"github.com/google/uuid"
 	"golang.org/x/crypto/ssh/agent"
@@ -90,6 +91,9 @@ func nonce2s(buf []byte) string {
 }
 
 func (c *CygwinSock) handle(conn net.Conn, nonce []byte) error {
+	defer conn.Close()
+	// Set a read deadline to prevent indefinite blocking on stale connections
+	conn.SetReadDeadline(time.Now().Add(5 * time.Minute))
 	nonceR := make([]byte, 16)
 	if _, err := conn.Read(nonceR); err != nil {
 		return err
