@@ -5,6 +5,7 @@ import (
 	"log"
 	"runtime"
 	"sync"
+	"time"
 	"unsafe"
 
 	"github.com/cwchiu/go-winapi"
@@ -28,6 +29,9 @@ const (
 	NIF_GUID     = 0x00000020
 	NIF_REALTIME = 0x00000040
 	NIF_SHOWTIP  = 0x00000080
+
+	testMessageTimeout  = 2 * time.Second
+	maxRegisterAttempts = 3
 )
 
 type notifyIconData struct {
@@ -53,16 +57,28 @@ func (nid *notifyIconData) Notify(message uint32) bool {
 }
 
 func (ti *TrayIcon) wndProc(hWnd winapi.HWND, msg uint32, wParam, lParam uintptr) uintptr {
+	log.Printf("wintray: wndProc msg=%d lParam=%d", msg, lParam)
 	switch msg {
 	case TrayIconMsg:
+		if ti.testPending {
+			ti.testPending = false
+			ti.testMsgReceived = true
+			log.Print("wintray: test TrayIconMsg received")
+		}
 		switch nmsg := winapi.LOWORD(uint32(lParam)); nmsg {
 		case NIN_BALLOONUSERCLICK:
+			log.Print("wintray: NIN_BALLOONUSERCLICK received")
 			ti.BalloonClickFunc()
 		case winapi.WM_LBUTTONDOWN:
-			//ti.ShowBalloonNotification("title", "WM_LBUTTONDOWN")
+			log.Print("wintray: WM_LBUTTONDOWN received")
 			ti.TrayClickFunc()
 		case winapi.WM_RBUTTONUP:
-			ti.showMenu()
+			log.Print("wintray: WM_RBUTTONUP received")
+			if err := ti.showMenu(); err != nil {
+				log.Printf("wintray: showMenu error: %v", err)
+			}
+		default:
+			log.Printf("wintray: TrayIconMsg received nmsg=%d", nmsg)
 		}
 	case winapi.WM_COMMAND:
 		menuItemId := int32(wParam)
@@ -102,8 +118,13 @@ type TrayIcon struct {
 	menus     map[uint32]winapi.HMENU
 	menusLock sync.RWMutex
 	// menuOf keeps track of the menu each menu item belongs to.
-	menuOf     map[uint32]winapi.HMENU
-	menuOfLock sync.RWMutex
+	menuOf           map[uint32]winapi.HMENU
+	menuOfLock       sync.RWMutex
+	icon             winapi.HICON
+	testPending      bool
+	testDeadline     time.Time
+	testMsgReceived  bool
+	registerAttempts int
 }
 
 func (ti *TrayIcon) createMainWindow() winapi.HWND {
@@ -132,6 +153,10 @@ func (ti *TrayIcon) createMainWindow() winapi.HWND {
 		0,
 		hInstance,
 		nil)
+	if hwnd == 0 {
+		log.Printf("wintray: CreateWindowEx failed: %d", winapi.GetLastError())
+	}
+	log.Printf("wintray: createMainWindow hwnd=%d", hwnd)
 
 	return hwnd
 }
@@ -139,7 +164,9 @@ func (ti *TrayIcon) createMainWindow() winapi.HWND {
 func (ti *TrayIcon) createMenu() error {
 	menuHandle := winapi.CreatePopupMenu()
 	if menuHandle == 0 {
-		return fmt.Errorf("%d", winapi.GetLastError())
+		err := fmt.Errorf("%d", winapi.GetLastError())
+		log.Printf("wintray: CreatePopupMenu failed: %v", err)
+		return err
 	}
 	ti.menuItems = map[uint32]*MenuItem{}
 	ti.menus = map[uint32]winapi.HMENU{}
@@ -152,8 +179,11 @@ func (ti *TrayIcon) createMenu() error {
 	mi.CbSize = uint32(unsafe.Sizeof(mi))
 
 	if !winapi.SetMenuInfo(ti.menus[0], &mi) {
-		return fmt.Errorf("%d", winapi.GetLastError())
+		err := fmt.Errorf("%d", winapi.GetLastError())
+		log.Printf("wintray: SetMenuInfo failed: %v", err)
+		return err
 	}
+	log.Print("wintray: menu structure initialized")
 
 	return nil
 }
@@ -314,15 +344,78 @@ func (ti *TrayIcon) updateSubMenuItem(item *MenuItem) (winapi.HMENU, error) {
 func (ti *TrayIcon) showMenu() error {
 	p := winapi.POINT{}
 	if !winapi.GetCursorPos(&p) {
-		return fmt.Errorf("%d", winapi.GetLastError())
+		err := fmt.Errorf("%d", winapi.GetLastError())
+		log.Printf("wintray: GetCursorPos failed: %v", err)
+		return err
 	}
-	winapi.SetForegroundWindow(ti.hwnd)
+	if !winapi.SetForegroundWindow(ti.hwnd) {
+		err := fmt.Errorf("%d", winapi.GetLastError())
+		log.Printf("wintray: SetForegroundWindow failed: %v", err)
+		return err
+	}
 
 	if winapi.TrackPopupMenu(ti.menus[0], winapi.TPM_BOTTOMALIGN|winapi.TPM_LEFTALIGN, p.X, p.Y, 0, ti.hwnd, nil) != 0 {
-		return fmt.Errorf("%d", winapi.GetLastError())
+		err := fmt.Errorf("%d", winapi.GetLastError())
+		log.Printf("wintray: TrackPopupMenu failed: %v", err)
+		return err
 	}
 
 	return nil
+}
+
+func (ti *TrayIcon) registerIcon() bool {
+	if ti.registerAttempts >= maxRegisterAttempts {
+		log.Printf("wintray: register attempts (%d) exceeded, skipping", ti.registerAttempts)
+		return false
+	}
+	ti.registerAttempts++
+	data := ti.initData()
+	log.Printf("wintray: callbackMessage=%d hwnd=%d", data.UCallbackMessage, data.HWnd)
+	data.UFlags |= NIF_MESSAGE | NIF_SHOWTIP
+	data.UCallbackMessage = TrayIconMsg
+	if !data.Notify(winapi.NIM_ADD) {
+		log.Printf("wintray: NIM_ADD failed: %d", winapi.GetLastError())
+		return false
+	}
+	log.Print("wintray: NIM_ADD succeeded")
+	return true
+}
+
+func (ti *TrayIcon) unregisterIcon() {
+	data := ti.initData()
+	if !data.Notify(winapi.NIM_DELETE) {
+		log.Printf("wintray: NIM_DELETE failed: %d", winapi.GetLastError())
+		return
+	}
+	log.Print("wintray: NIM_DELETE succeeded")
+}
+
+func (ti *TrayIcon) postTestMessage() {
+	if ti.hwnd == 0 {
+		log.Print("wintray: cannot post test message, hwnd is zero")
+		return
+	}
+	ti.testPending = true
+	ti.testMsgReceived = false
+	ti.testDeadline = time.Now().Add(testMessageTimeout)
+	if winapi.PostMessage(ti.hwnd, TrayIconMsg, 0, 0) == 0 {
+		log.Printf("wintray: failed to post test TrayIconMsg: %d", winapi.GetLastError())
+		ti.testPending = false
+		return
+	}
+	log.Print("wintray: posted test TrayIconMsg")
+}
+
+func (ti *TrayIcon) reRegisterIcon() {
+	log.Print("wintray: re-registering tray icon")
+	ti.unregisterIcon()
+	if !ti.registerIcon() {
+		return
+	}
+	if ti.icon != 0 {
+		ti.SetIcon(ti.icon)
+	}
+	ti.postTestMessage()
 }
 
 func (ti *TrayIcon) menuSelected(id uint32) error {
@@ -350,12 +443,12 @@ func NewTrayIcon() *TrayIcon {
 func (ti *TrayIcon) Run(onReady, onExit func()) {
 	ti.hwnd = ti.createMainWindow()
 	ti.createMenu()
-	icon := winapi.LoadIcon(winapi.GetModuleHandle(nil), winapi.MAKEINTRESOURCE(3))
-	data := ti.initData()
-	data.UFlags |= winapi.NIF_MESSAGE | NIF_SHOWTIP
-	data.UCallbackMessage = TrayIconMsg
-	data.Notify(winapi.NIM_ADD)
-	ti.SetIcon(icon)
+	ti.icon = winapi.LoadIcon(winapi.GetModuleHandle(nil), winapi.MAKEINTRESOURCE(3))
+	ti.registerAttempts = 0
+	if ti.registerIcon() {
+		ti.SetIcon(ti.icon)
+		ti.postTestMessage()
+	}
 
 	/*
 		go func() {
@@ -376,14 +469,24 @@ func (ti *TrayIcon) Run(onReady, onExit func()) {
 	runtime.LockOSThread()
 	defer runtime.UnlockOSThread()
 	var msg winapi.MSG
+	log.Print("wintray: msg loop start")
 	for {
+		log.Print("wintray: before GetMessage")
 		r := winapi.GetMessage(&msg, 0, 0, 0)
+		log.Printf("wintray: after GetMessage r=%d msg=%d", r, msg.Message)
 		if r == 0 {
+			log.Print("wintray: GetMessage returned 0, exiting loop")
 			ti.Dispose()
 			break
 		}
+		log.Printf("wintray: msg loop msg=%d", msg.Message)
 		winapi.TranslateMessage(&msg)
 		winapi.DispatchMessage(&msg)
+		if ti.testPending && time.Now().After(ti.testDeadline) {
+			log.Print("wintray: test message timeout, will re-register")
+			ti.testPending = false
+			ti.reRegisterIcon()
+		}
 	}
 
 }

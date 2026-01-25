@@ -25,14 +25,16 @@ import (
 
 // App application struct
 type App struct {
-	ctx          context.Context
-	agentCtx     context.Context
-	ti           *wintray.TrayIcon
-	keyRing      *sshutil.KeyRing
-	settings     *store.Settings
-	wg           sync.WaitGroup
-	cancelAgents context.CancelFunc
-	shutdownOnce sync.Once
+	ctx              context.Context
+	agentCtx         context.Context
+	ti               *wintray.TrayIcon
+	keyRing          *sshutil.KeyRing
+	settings         *store.Settings
+	wg               sync.WaitGroup
+	cancelAgents     context.CancelFunc
+	shutdownOnce     sync.Once
+	debugLogMenuItem *wintray.MenuItem
+	logDirMenuItem   *wintray.MenuItem
 }
 
 // NewApp creates a new App application struct
@@ -55,24 +57,16 @@ func (a *App) systrayOnReady() {
 	mQuit := a.ti.AddMenuItem("Quit", "Quit the whole app")
 	mLogCheckBox := a.ti.AddMenuItemCheckbox("Debug log", "Enable debug log file output", false)
 	mLogDirOpen := a.ti.AddMenuItem("Open log directory", "open log directory")
-	mLogDirOpen.Disable()
+	a.debugLogMenuItem = mLogCheckBox
+	a.logDirMenuItem = mLogDirOpen
+	a.applyDebugLogMenuState()
 	go func() {
 		for {
 			select {
 			case <-mShowWindow.ClickedCh:
 				a.showWindow()
 			case <-mLogCheckBox.ClickedCh:
-				if mLogCheckBox.Checked() {
-					mLogCheckBox.Uncheck()
-					log.Print("Disable debug log")
-					Logger.SetEnable(false)
-					mLogDirOpen.Disable()
-				} else {
-					mLogCheckBox.Check()
-					Logger.SetEnable(true)
-					log.Print("Enable debug log")
-					mLogDirOpen.Enable()
-				}
+				a.setDebugLogEnabled(!mLogCheckBox.Checked())
 			case <-mQuit.ClickedCh:
 				log.Print("Quit was clicked on the menu")
 				a.Quit()
@@ -94,6 +88,9 @@ func (a *App) systrayOnExit() {
 func (a *App) startup(ctx context.Context) {
 	// Perform your setup here
 	a.ctx = ctx
+	if a.settings != nil {
+		Logger.SetEnable(a.settings.SaveData.DebugLog)
+	}
 	a.ti = wintray.NewTrayIcon()
 	a.ti.BalloonClickFunc = a.showWindow
 	a.ti.TrayClickFunc = a.showWindow
@@ -249,6 +246,31 @@ func (a *App) shutdown(ctx context.Context) {
 	})
 }
 
+func (a *App) setDebugLogEnabled(enabled bool) {
+	Logger.SetEnable(enabled)
+	if a.settings != nil {
+		a.settings.SaveData.DebugLog = enabled
+	}
+	a.applyDebugLogMenuState()
+}
+
+func (a *App) applyDebugLogMenuState() {
+	if a.debugLogMenuItem == nil {
+		return
+	}
+	if Logger.GetEnable() {
+		a.debugLogMenuItem.Check()
+		if a.logDirMenuItem != nil {
+			a.logDirMenuItem.Enable()
+		}
+		return
+	}
+	a.debugLogMenuItem.Uncheck()
+	if a.logDirMenuItem != nil {
+		a.logDirMenuItem.Disable()
+	}
+}
+
 func (a *App) AddLocalFile(pk sshkey.PrivateKeyFile) error {
 	pk.Name = filepath.Base(pk.FilePath)
 	pk.StoreType = sshutil.LocalStore
@@ -294,6 +316,7 @@ func (a *App) GetSettings() store.SaveData {
 	return a.settings.SaveData
 }
 func (a *App) Save(s store.SaveData) error {
+	a.setDebugLogEnabled(s.DebugLog)
 	a.settings.SaveData.StartHidden = s.StartHidden
 	a.settings.SaveData.PageantAgent = s.PageantAgent
 	a.settings.SaveData.NamedPipeAgent = s.NamedPipeAgent

@@ -37,6 +37,7 @@
     UnixSocketPath: "",
     CygWinSocketPath: "",
     ProxyModeOfNamedPipe: false,
+    DebugLog: false,
   };
 
   const openDialog = async () => {
@@ -101,6 +102,19 @@
                 >{data.StartHidden
                   ? "Hide the window on launch"
                   : "Show window on launch"}</span
+              >
+            </FormField>
+          </div>
+          <div>
+            <FormField>
+              <Switch
+                bind:checked={data.DebugLog}
+                value="Write debug log on startup?"
+              />
+              <span
+                >{data.DebugLog
+                  ? "Write debug log on startup (useful when tray is unresponsive)"
+                  : "Do not write debug log on startup"}</span
               >
             </FormField>
           </div>
