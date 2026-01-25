@@ -197,14 +197,17 @@ func (a *Pageant) RunAgent(ctx context.Context) {
 	stopWatcher := startCancelWatcher(ctx, threadID)
 	defer stopWatcher()
 
-	var msg winapi.MSG
-	for winapi.GetMessage(&msg, 0, 0, 0) != 0 {
-		winapi.TranslateMessage(&msg)
-		winapi.DispatchMessage(&msg)
+	msg := (*winapi.MSG)(unsafe.Pointer(winapi.GlobalAlloc(0, unsafe.Sizeof(winapi.MSG{}))))
+	defer winapi.GlobalFree(winapi.HGLOBAL(unsafe.Pointer(msg)))
+	for winapi.GetMessage(msg, 0, 0, 0) != 0 {
+		winapi.TranslateMessage(msg)
+		winapi.DispatchMessage(msg)
 		if msg.Message == winapi.WM_QUIT {
 			break
 		}
 	}
+
+	runtime.KeepAlive(&msg)
 }
 
 func startCancelWatcher(ctx context.Context, threadID uint32) func() {
