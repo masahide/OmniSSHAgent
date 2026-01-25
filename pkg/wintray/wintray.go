@@ -56,7 +56,21 @@ func (nid *notifyIconData) Notify(message uint32) bool {
 	return winapi.Shell_NotifyIcon(message, (*winapi.NOTIFYICONDATA)(unsafe.Pointer(nid)))
 }
 
+func currentThreadID() uint32 {
+	return windows.GetCurrentThreadId()
+}
+
+func logWindowThreadInfo(hwnd winapi.HWND, prefix string) {
+	var pid uint32
+	tid, err := windows.GetWindowThreadProcessId(windows.HWND(hwnd), &pid)
+	if err != nil && err != windows.ERROR_SUCCESS {
+		log.Printf("%s GetWindowThreadProcessId error: %v", prefix, err)
+	}
+	log.Printf("%s hwnd=%d tid=%d pid=%d", prefix, hwnd, tid, pid)
+}
+
 func (ti *TrayIcon) wndProc(hWnd winapi.HWND, msg uint32, wParam, lParam uintptr) uintptr {
+	logWindowThreadInfo(hWnd, "wintray: wndProc window info")
 	log.Printf("wintray: wndProc msg=%d lParam=%d", msg, lParam)
 	switch msg {
 	case TrayIconMsg:
@@ -370,6 +384,9 @@ func (ti *TrayIcon) registerIcon() bool {
 	}
 	ti.registerAttempts++
 	data := ti.initData()
+	if ti.hwnd != 0 {
+		logWindowThreadInfo(ti.hwnd, "wintray: register thread info")
+	}
 	log.Printf("wintray: callbackMessage=%d hwnd=%d", data.UCallbackMessage, data.HWnd)
 	data.UFlags |= NIF_MESSAGE | NIF_SHOWTIP
 	data.UCallbackMessage = TrayIconMsg
@@ -377,6 +394,12 @@ func (ti *TrayIcon) registerIcon() bool {
 		log.Printf("wintray: NIM_ADD failed: %d", winapi.GetLastError())
 		return false
 	}
+	if data.Notify(winapi.NIM_MODIFY) {
+		log.Print("wintray: NIM_MODIFY succeeded (post NIM_ADD)")
+	} else {
+		log.Printf("wintray: NIM_MODIFY failed (post NIM_ADD): %d", winapi.GetLastError())
+	}
+	logWindowThreadInfo(ti.hwnd, "wintray: registered icon thread info")
 	log.Print("wintray: NIM_ADD succeeded")
 	return true
 }
@@ -395,9 +418,17 @@ func (ti *TrayIcon) postTestMessage() {
 		log.Print("wintray: cannot post test message, hwnd is zero")
 		return
 	}
+	valid := windows.IsWindow(windows.HWND(ti.hwnd))
+	log.Printf("wintray: post test message IsWindow=%t thread=%d", valid, currentThreadID())
+	if valid {
+		logWindowThreadInfo(ti.hwnd, "wintray: postTestMessage window info")
+	} else {
+		log.Print("wintray: postTestMessage detected invalid hwnd -> case (b) suspect")
+	}
 	ti.testPending = true
 	ti.testMsgReceived = false
 	ti.testDeadline = time.Now().Add(testMessageTimeout)
+	log.Printf("wintray: test deadline=%s", ti.testDeadline.Format(time.RFC3339Nano))
 	if winapi.PostMessage(ti.hwnd, TrayIconMsg, 0, 0) == 0 {
 		log.Printf("wintray: failed to post test TrayIconMsg: %d", winapi.GetLastError())
 		ti.testPending = false
@@ -407,7 +438,7 @@ func (ti *TrayIcon) postTestMessage() {
 }
 
 func (ti *TrayIcon) reRegisterIcon() {
-	log.Print("wintray: re-registering tray icon")
+	log.Printf("wintray: re-registering tray icon attempt=%d", ti.registerAttempts+1)
 	ti.unregisterIcon()
 	if !ti.registerIcon() {
 		return
@@ -445,6 +476,9 @@ func (ti *TrayIcon) Run(onReady, onExit func()) {
 	ti.createMenu()
 	ti.icon = winapi.LoadIcon(winapi.GetModuleHandle(nil), winapi.MAKEINTRESOURCE(3))
 	ti.registerAttempts = 0
+	if ti.hwnd != 0 {
+		logWindowThreadInfo(ti.hwnd, "wintray: run thread info")
+	}
 	if ti.registerIcon() {
 		ti.SetIcon(ti.icon)
 		ti.postTestMessage()
@@ -471,9 +505,9 @@ func (ti *TrayIcon) Run(onReady, onExit func()) {
 	var msg winapi.MSG
 	log.Print("wintray: msg loop start")
 	for {
-		log.Print("wintray: before GetMessage")
+		log.Printf("wintray: before GetMessage tid=%d testPending=%t", currentThreadID(), ti.testPending)
 		r := winapi.GetMessage(&msg, 0, 0, 0)
-		log.Printf("wintray: after GetMessage r=%d msg=%d", r, msg.Message)
+		log.Printf("wintray: after GetMessage r=%d msg=%d tid=%d", r, msg.Message, currentThreadID())
 		if r == 0 {
 			log.Print("wintray: GetMessage returned 0, exiting loop")
 			ti.Dispose()
@@ -483,7 +517,7 @@ func (ti *TrayIcon) Run(onReady, onExit func()) {
 		winapi.TranslateMessage(&msg)
 		winapi.DispatchMessage(&msg)
 		if ti.testPending && time.Now().After(ti.testDeadline) {
-			log.Print("wintray: test message timeout, will re-register")
+			log.Printf("wintray: test message timeout, will re-register (deadline=%s)", ti.testDeadline.Format(time.RFC3339Nano))
 			ti.testPending = false
 			ti.reRegisterIcon()
 		}
