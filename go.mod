@@ -1,6 +1,6 @@
 module github.com/masahide/OmniSSHAgent
 
-go 1.22.3
+go 1.25.6
 
 require (
 	github.com/Microsoft/go-winio v0.6.2

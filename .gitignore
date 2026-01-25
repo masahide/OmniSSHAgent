@@ -8,3 +8,5 @@ cmd/agent-bench/agent-bench.exe
 test*/
 pkg/muxconn
 pkg/stdioconn
+node_modules/
+frontend/node_modules/
