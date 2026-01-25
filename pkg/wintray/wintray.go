@@ -3,9 +3,10 @@ package wintray
 import (
 	"fmt"
 	"log"
+	"os"
 	"runtime"
 	"sync"
-	"time"
+	"sync/atomic"
 	"unsafe"
 
 	"github.com/cwchiu/go-winapi"
@@ -14,8 +15,9 @@ import (
 )
 
 const (
-	ID          = "OmniSSHAgent"
-	TrayIconMsg = winapi.WM_APP + 1
+	ID                 = "OmniSSHAgent"
+	TrayIconMsg        = winapi.WM_APP + 1
+	trayCommandMessage = winapi.WM_APP + 2
 
 	NOTIFYICON_VERSION_4 = winapi.NOTIFYICON_VERSION + 1
 	NIN_BALLOONSHOW      = 0x0402
@@ -29,10 +31,11 @@ const (
 	NIF_GUID     = 0x00000020
 	NIF_REALTIME = 0x00000040
 	NIF_SHOWTIP  = 0x00000080
-
-	testMessageTimeout  = 2 * time.Second
-	maxRegisterAttempts = 3
 )
+
+type trayCommand struct {
+	fn func()
+}
 
 type notifyIconData struct {
 	CbSize            uint32
@@ -60,39 +63,63 @@ func currentThreadID() uint32 {
 	return windows.GetCurrentThreadId()
 }
 
-func logWindowThreadInfo(hwnd winapi.HWND, prefix string) {
-	var pid uint32
-	tid, err := windows.GetWindowThreadProcessId(windows.HWND(hwnd), &pid)
-	if err != nil && err != windows.ERROR_SUCCESS {
-		log.Printf("%s GetWindowThreadProcessId error: %v", prefix, err)
+func reportTrayFatalError(reason string) {
+	title := windows.StringToUTF16Ptr("OmniSSHAgent")
+	message := windows.StringToUTF16Ptr(reason)
+	winapi.MessageBox(0, message, title, winapi.MB_OK|winapi.MB_ICONERROR)
+	os.Exit(1)
+}
+
+// enqueueCommand keeps Win32 actions on the tray thread (see doc/dev/issue-tasktry.md for context).
+func (ti *TrayIcon) enqueueCommand(fn func()) {
+	ti.commandMu.Lock()
+	if ti.shuttingDown || ti.commandCh == nil {
+		ti.commandMu.Unlock()
+		return
 	}
-	log.Printf("%s hwnd=%d tid=%d pid=%d", prefix, hwnd, tid, pid)
+	ch := ti.commandCh
+	ti.commandMu.Unlock()
+	if fn == nil {
+		return
+	}
+	ch <- trayCommand{fn: fn}
+	if ti.hwnd != 0 {
+		winapi.PostMessage(ti.hwnd, trayCommandMessage, 0, 0)
+	}
+}
+
+func (ti *TrayIcon) handleCommands() {
+	for {
+		select {
+		case cmd := <-ti.commandCh:
+			if cmd.fn != nil {
+				cmd.fn()
+			}
+		default:
+			return
+		}
+	}
+}
+
+func (ti *TrayIcon) stopCommandQueue() {
+	ti.commandMu.Lock()
+	ti.shuttingDown = true
+	ti.commandMu.Unlock()
 }
 
 func (ti *TrayIcon) wndProc(hWnd winapi.HWND, msg uint32, wParam, lParam uintptr) uintptr {
-	logWindowThreadInfo(hWnd, "wintray: wndProc window info")
-	log.Printf("wintray: wndProc msg=%d lParam=%d", msg, lParam)
 	switch msg {
 	case TrayIconMsg:
-		if ti.testPending {
-			ti.testPending = false
-			ti.testMsgReceived = true
-			log.Print("wintray: test TrayIconMsg received")
-		}
 		switch nmsg := winapi.LOWORD(uint32(lParam)); nmsg {
 		case NIN_BALLOONUSERCLICK:
-			log.Print("wintray: NIN_BALLOONUSERCLICK received")
 			ti.BalloonClickFunc()
 		case winapi.WM_LBUTTONDOWN:
-			log.Print("wintray: WM_LBUTTONDOWN received")
 			ti.TrayClickFunc()
 		case winapi.WM_RBUTTONUP:
-			log.Print("wintray: WM_RBUTTONUP received")
 			if err := ti.showMenu(); err != nil {
 				log.Printf("wintray: showMenu error: %v", err)
 			}
 		default:
-			log.Printf("wintray: TrayIconMsg received nmsg=%d", nmsg)
 		}
 	case winapi.WM_COMMAND:
 		menuItemId := int32(wParam)
@@ -100,6 +127,8 @@ func (ti *TrayIcon) wndProc(hWnd winapi.HWND, msg uint32, wParam, lParam uintptr
 		if menuItemId != -1 {
 			ti.menuSelected(uint32(wParam))
 		}
+	case trayCommandMessage:
+		ti.handleCommands()
 	case winapi.WM_DESTROY:
 		winapi.PostQuitMessage(0)
 	default:
@@ -132,13 +161,12 @@ type TrayIcon struct {
 	menus     map[uint32]winapi.HMENU
 	menusLock sync.RWMutex
 	// menuOf keeps track of the menu each menu item belongs to.
-	menuOf           map[uint32]winapi.HMENU
-	menuOfLock       sync.RWMutex
-	icon             winapi.HICON
-	testPending      bool
-	testDeadline     time.Time
-	testMsgReceived  bool
-	registerAttempts int
+	menuOf       map[uint32]winapi.HMENU
+	menuOfLock   sync.RWMutex
+	icon         winapi.HICON
+	commandCh    chan trayCommand
+	commandMu    sync.Mutex
+	shuttingDown bool
 }
 
 func (ti *TrayIcon) createMainWindow() winapi.HWND {
@@ -168,9 +196,8 @@ func (ti *TrayIcon) createMainWindow() winapi.HWND {
 		hInstance,
 		nil)
 	if hwnd == 0 {
-		log.Printf("wintray: CreateWindowEx failed: %d", winapi.GetLastError())
+		reportTrayFatalError(fmt.Sprintf("CreateWindowEx failed: %d", winapi.GetLastError()))
 	}
-	log.Printf("wintray: createMainWindow hwnd=%d", hwnd)
 
 	return hwnd
 }
@@ -197,7 +224,6 @@ func (ti *TrayIcon) createMenu() error {
 		log.Printf("wintray: SetMenuInfo failed: %v", err)
 		return err
 	}
-	log.Print("wintray: menu structure initialized")
 
 	return nil
 }
@@ -218,32 +244,38 @@ func (ti *TrayIcon) Dispose() {
 }
 
 func (ti *TrayIcon) SetIcon(icon winapi.HICON) {
-	data := ti.initData()
-	data.UFlags |= winapi.NIF_ICON
-	data.HIcon = icon
-	data.Notify(winapi.NIM_MODIFY)
+	ti.enqueueCommand(func() {
+		data := ti.initData()
+		data.UFlags |= winapi.NIF_ICON
+		data.HIcon = icon
+		data.Notify(winapi.NIM_MODIFY)
+	})
 }
 
 func (ti *TrayIcon) SetTooltip(tooltip string) {
-	data := ti.initData()
-	data.UFlags |= winapi.NIF_TIP
-	copy(data.SzTip[:], windows.StringToUTF16(tooltip))
-	data.Notify(winapi.NIM_MODIFY)
+	ti.enqueueCommand(func() {
+		data := ti.initData()
+		data.UFlags |= winapi.NIF_TIP
+		copy(data.SzTip[:], windows.StringToUTF16(tooltip))
+		data.Notify(winapi.NIM_MODIFY)
+	})
 }
 
 func (ti *TrayIcon) SetTitle(title string) {
 }
 
 func (ti *TrayIcon) ShowBalloonNotification(title, text string) {
-	data := ti.initData()
-	data.UFlags |= winapi.NIF_INFO | NIF_REALTIME
-	if title != "" {
-		copy(data.SzInfoTitle[:], windows.StringToUTF16(title))
-	}
-	copy(data.SzInfo[:], windows.StringToUTF16(text))
-	if !data.Notify(winapi.NIM_MODIFY) {
-		log.Printf("cannot show balloon: %d", winapi.GetLastError())
-	}
+	ti.enqueueCommand(func() {
+		data := ti.initData()
+		data.UFlags |= winapi.NIF_INFO | NIF_REALTIME
+		if title != "" {
+			copy(data.SzInfoTitle[:], windows.StringToUTF16(title))
+		}
+		copy(data.SzInfo[:], windows.StringToUTF16(text))
+		if !data.Notify(winapi.NIM_MODIFY) {
+			log.Printf("cannot show balloon: %d", winapi.GetLastError())
+		}
+	})
 }
 
 func (ti *TrayIcon) AddMenuItem(title, tooltip string) *MenuItem {
@@ -355,6 +387,28 @@ func (ti *TrayIcon) updateSubMenuItem(item *MenuItem) (winapi.HMENU, error) {
 	return menu, nil
 }
 
+func (ti *TrayIcon) insertSeparator(parentID uint32) {
+	ti.menusLock.RLock()
+	parentMenu := ti.menus[parentID]
+	ti.menusLock.RUnlock()
+	if parentMenu == 0 {
+		log.Printf("wintray: insertSeparator parent menu not found id=%d", parentID)
+		return
+	}
+
+	menuItemId := atomic.AddUint32(&ti.currentMenuID, 1)
+	mi := winapi.MENUITEMINFO{
+		FMask: winapi.MIIM_FTYPE | winapi.MIIM_ID | winapi.MIIM_STATE,
+		FType: winapi.MFT_SEPARATOR,
+		WID:   menuItemId,
+	}
+	mi.CbSize = uint32(unsafe.Sizeof(mi))
+	if !winapi.InsertMenuItem(parentMenu, 0, false, &mi) {
+		log.Printf("wintray: InsertMenuItem failed: %d", winapi.GetLastError())
+		return
+	}
+}
+
 func (ti *TrayIcon) showMenu() error {
 	p := winapi.POINT{}
 	if !winapi.GetCursorPos(&p) {
@@ -368,39 +422,31 @@ func (ti *TrayIcon) showMenu() error {
 		return err
 	}
 
-	if winapi.TrackPopupMenu(ti.menus[0], winapi.TPM_BOTTOMALIGN|winapi.TPM_LEFTALIGN, p.X, p.Y, 0, ti.hwnd, nil) != 0 {
-		err := fmt.Errorf("%d", winapi.GetLastError())
-		log.Printf("wintray: TrackPopupMenu failed: %v", err)
-		return err
+	if winapi.TrackPopupMenu(ti.menus[0], winapi.TPM_BOTTOMALIGN|winapi.TPM_LEFTALIGN, p.X, p.Y, 0, ti.hwnd, nil) == 0 {
+		errCode := winapi.GetLastError()
+		if errCode != 0 {
+			err := fmt.Errorf("%d", errCode)
+			log.Printf("wintray: TrackPopupMenu failed: %v", err)
+			return err
+		}
 	}
 
 	return nil
 }
 
 func (ti *TrayIcon) registerIcon() bool {
-	if ti.registerAttempts >= maxRegisterAttempts {
-		log.Printf("wintray: register attempts (%d) exceeded, skipping", ti.registerAttempts)
-		return false
-	}
-	ti.registerAttempts++
 	data := ti.initData()
-	if ti.hwnd != 0 {
-		logWindowThreadInfo(ti.hwnd, "wintray: register thread info")
-	}
-	log.Printf("wintray: callbackMessage=%d hwnd=%d", data.UCallbackMessage, data.HWnd)
 	data.UFlags |= NIF_MESSAGE | NIF_SHOWTIP
 	data.UCallbackMessage = TrayIconMsg
 	if !data.Notify(winapi.NIM_ADD) {
-		log.Printf("wintray: NIM_ADD failed: %d", winapi.GetLastError())
+		reportTrayFatalError(fmt.Sprintf("Shell_NotifyIcon(NIM_ADD) failed: %d", winapi.GetLastError()))
 		return false
 	}
 	if data.Notify(winapi.NIM_MODIFY) {
-		log.Print("wintray: NIM_MODIFY succeeded (post NIM_ADD)")
+		// nothing to log on success
 	} else {
 		log.Printf("wintray: NIM_MODIFY failed (post NIM_ADD): %d", winapi.GetLastError())
 	}
-	logWindowThreadInfo(ti.hwnd, "wintray: registered icon thread info")
-	log.Print("wintray: NIM_ADD succeeded")
 	return true
 }
 
@@ -410,43 +456,6 @@ func (ti *TrayIcon) unregisterIcon() {
 		log.Printf("wintray: NIM_DELETE failed: %d", winapi.GetLastError())
 		return
 	}
-	log.Print("wintray: NIM_DELETE succeeded")
-}
-
-func (ti *TrayIcon) postTestMessage() {
-	if ti.hwnd == 0 {
-		log.Print("wintray: cannot post test message, hwnd is zero")
-		return
-	}
-	valid := windows.IsWindow(windows.HWND(ti.hwnd))
-	log.Printf("wintray: post test message IsWindow=%t thread=%d", valid, currentThreadID())
-	if valid {
-		logWindowThreadInfo(ti.hwnd, "wintray: postTestMessage window info")
-	} else {
-		log.Print("wintray: postTestMessage detected invalid hwnd -> case (b) suspect")
-	}
-	ti.testPending = true
-	ti.testMsgReceived = false
-	ti.testDeadline = time.Now().Add(testMessageTimeout)
-	log.Printf("wintray: test deadline=%s", ti.testDeadline.Format(time.RFC3339Nano))
-	if winapi.PostMessage(ti.hwnd, TrayIconMsg, 0, 0) == 0 {
-		log.Printf("wintray: failed to post test TrayIconMsg: %d", winapi.GetLastError())
-		ti.testPending = false
-		return
-	}
-	log.Print("wintray: posted test TrayIconMsg")
-}
-
-func (ti *TrayIcon) reRegisterIcon() {
-	log.Printf("wintray: re-registering tray icon attempt=%d", ti.registerAttempts+1)
-	ti.unregisterIcon()
-	if !ti.registerIcon() {
-		return
-	}
-	if ti.icon != 0 {
-		ti.SetIcon(ti.icon)
-	}
-	ti.postTestMessage()
 }
 
 func (ti *TrayIcon) menuSelected(id uint32) error {
@@ -467,22 +476,22 @@ func (ti *TrayIcon) menuSelected(id uint32) error {
 }
 
 func NewTrayIcon() *TrayIcon {
-	ti := &TrayIcon{guid: guid()}
+	ti := &TrayIcon{
+		guid:      guid(),
+		commandCh: make(chan trayCommand, 128),
+	}
 	return ti
 }
 
 func (ti *TrayIcon) Run(onReady, onExit func()) {
+	runtime.LockOSThread()
+	defer runtime.UnlockOSThread()
+
 	ti.hwnd = ti.createMainWindow()
 	ti.createMenu()
 	ti.icon = winapi.LoadIcon(winapi.GetModuleHandle(nil), winapi.MAKEINTRESOURCE(3))
-	ti.registerAttempts = 0
-	if ti.hwnd != 0 {
-		logWindowThreadInfo(ti.hwnd, "wintray: run thread info")
-	}
-	if ti.registerIcon() {
-		ti.SetIcon(ti.icon)
-		ti.postTestMessage()
-	}
+	ti.registerIcon()
+	ti.SetIcon(ti.icon)
 
 	/*
 		go func() {
@@ -500,32 +509,21 @@ func (ti *TrayIcon) Run(onReady, onExit func()) {
 	//winapi.ShowWindow(ti.hwnd, winapi.SW_HIDE)
 	onReady()
 	defer onExit()
-	runtime.LockOSThread()
-	defer runtime.UnlockOSThread()
+
 	var msg winapi.MSG
-	log.Print("wintray: msg loop start")
 	for {
-		log.Printf("wintray: before GetMessage tid=%d testPending=%t", currentThreadID(), ti.testPending)
 		r := winapi.GetMessage(&msg, 0, 0, 0)
-		log.Printf("wintray: after GetMessage r=%d msg=%d tid=%d", r, msg.Message, currentThreadID())
 		if r == 0 {
-			log.Print("wintray: GetMessage returned 0, exiting loop")
 			ti.Dispose()
 			break
 		}
-		log.Printf("wintray: msg loop msg=%d", msg.Message)
 		winapi.TranslateMessage(&msg)
 		winapi.DispatchMessage(&msg)
-		if ti.testPending && time.Now().After(ti.testDeadline) {
-			log.Printf("wintray: test message timeout, will re-register (deadline=%s)", ti.testDeadline.Format(time.RFC3339Nano))
-			ti.testPending = false
-			ti.reRegisterIcon()
-		}
 	}
-
 }
 
 func (ti *TrayIcon) Quit() {
+	ti.stopCommandQueue()
 	winapi.PostMessage(
 		ti.hwnd,
 		winapi.WM_CLOSE,

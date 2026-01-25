@@ -51,12 +51,13 @@ func (a *App) setTrayTooltip() {
 }
 
 func (a *App) systrayOnReady() {
+	// Systray operations must be executed on a dedicated tray thread (see doc/dev/issue-tasktry.md).
 	a.ti.SetTitle(AppName)
 	a.setTrayTooltip()
 	mShowWindow := a.ti.AddMenuItem("ShowWindow", "Show main window")
 	mQuit := a.ti.AddMenuItem("Quit", "Quit the whole app")
 	mLogCheckBox := a.ti.AddMenuItemCheckbox("Debug log", "Enable debug log file output", false)
-	mLogDirOpen := a.ti.AddMenuItem("Open log directory", "open log directory")
+	mLogDirOpen := a.ti.AddMenuItem("Open log directory", "Open log directory")
 	a.debugLogMenuItem = mLogCheckBox
 	a.logDirMenuItem = mLogDirOpen
 	a.applyDebugLogMenuState()
@@ -68,7 +69,6 @@ func (a *App) systrayOnReady() {
 			case <-mLogCheckBox.ClickedCh:
 				a.setDebugLogEnabled(!mLogCheckBox.Checked())
 			case <-mQuit.ClickedCh:
-				log.Print("Quit was clicked on the menu")
 				a.Quit()
 				return
 			case <-mLogDirOpen.ClickedCh:

@@ -23,7 +23,7 @@
 ### 2.4 受け入れ条件 Acceptance Criteria
 1. Given TrayThread 起動時 When `StartTrayThread` が `runtime.LockOSThread()` した goroutine で Win32 初期化を行い Then `Shell_NotifyIcon(NIM_ADD)` と `GetMessage` ループが同一 OS スレッドで生存している。
 2. Given 本体 goroutine When `PostTrayCommand` で Icon/Tooltip/ShowBalloon 等を要求 Then すべて TrayThread 上で `Shell_NotifyIcon` への変更が行われ、Win32 API 呼び出しが他スレッドに分散しない。
-3. Given TrayThread 中 `Shell_NotifyIcon` 実行でエラー When `NIM_MODIFY` などが失敗 Then ログと再登録処理を実行し、3 回以内に自動復帰できる。
+3. Given TrayThread 中 `CreateWindowEx` または `Shell_NotifyIcon(NIM_ADD)` が失敗 When Win32 がエラーを返した場合 Then Windows メッセージボックスで「トレイ登録に失敗した」旨を表示して `os.Exit(1)` し、プログラム起動中にトレイがない状態で放置しない。
 4. Given App 終了 When `StopTrayThread` で quit コマンドを送信 Then TrayThread は `PostQuitMessage` を投げてループを抜け `Shell_NotifyIcon(NIM_DELETE)` を実行し、`WaitGroup` 経由で終了を待つ。
 5. Given `mQuit.ClickedCh` などでメニューイベントが走る When Win32 から `WM_COMMAND` が来た Then TrayThread は `MenuItem.ClickedCh` を適切に通知する。
 
@@ -47,15 +47,15 @@
 - App との境界: `func StartTrayThread(opts TrayOptions) (*TrayHandle, error)`、`func (h *TrayHandle) Post(cmd TrayCommand)` など。
 
 ### 4.2 データモデルとスキーマ
-- TrayCommand: `enum { SetIcon, SetTooltip, ShowBalloon, UpdateMenu, Quit, ReRegister }` + ながらオプション (文字列, icon handle, callback)。
+- TrayCommand: `enum { SetIcon, SetTooltip, ShowBalloon, UpdateMenu, Quit }` + ながらオプション (文字列, icon handle, callback)。
 - MenuItem: `ClickedCh chan struct{}` は従来通り。TrayThread は `map[uint32]*wintray.MenuItem` を保持。
 - Validation: 各コマンドは nil チェック・アイコン/テキストの長さ制限 (TIP 128文字) を行う。
 
 ### 4.3 エラーと例外 Error Handling
-- 重大エラー: `Shell_NotifyIcon` 失敗はログ出力 + `reRegister` フロー (最大 3回) で対応。`TrayThread.Post` は非同期で `error` を返さないが、必要な場合 `errorCh` で通知。
-- リトライ方針: Register に失敗したら 1 秒待ち、最大 3 回再試行（既存 `registerAttempts` を使用）。
-- タイムアウト: トレイコマンドは 500ms で `PostMessage` への応答を待ち、遅延が続くなら再登録。
-- ログ: `log.Printf` でトラブル情報を残し、個人情報はログしない。
+- 重大エラー: `CreateWindowEx` または `Shell_NotifyIcon(NIM_ADD)` が失敗したら Windows のメッセージボックスでエラーダイアログを表示し、`os.Exit(1)` で即時終了して再登録を行わない。`TrayThread.Post` は非同期で `error` を返さないため、重大な失敗はトレイスレッド内で検出しダイアログを出す。
+- リトライ方針: 再登録/リトライは行わず、失敗は即時ポップアップ → 終了、という動作を契約とする。
+- タイムアウト: トレイ用 goroutine は通常の Win32 メッセージループに任せ、独自のタイムアウトは実装しない。エラーは `log.Printf` で残す。
+- ログ: Win32 API に関連するエラーのみログに出力し、個人情報を含まない。
 
 ### 4.4 代表的な例 Examples
 1. 起動 API:
@@ -120,37 +120,37 @@ sequenceDiagram
 - Contract: App 側が直接 `Shell_NotifyIcon` を呼べなくなるよう `TrayHandle` を介在させ、古い API を隠蔽した上で `cmd/agent-bench` の `WinTray` サブコマンドで同様のフローを走らせて保証。
 
 ### 6.2 カバレッジ対象
-- `TrayCommand` の各種類 (SetIcon, SetTooltip, ShowBalloon, Quit, ReRegister)。
+- `TrayCommand` の各種類 (SetIcon, SetTooltip, ShowBalloon, Quit)。
 - `TrayThread` が `runtime.LockOSThread()` を呼んで以降、`GetMessage` ループを保持し続けるか。
-- `Shell_NotifyIcon` の再登録とエラーハンドリング (registerAttempts の増分とログ)。
+- `CreateWindowEx` / `Shell_NotifyIcon(NIM_ADD)` 失敗時に `reportTrayFatalError` が呼ばれてダイアログ表示と `os.Exit` をトリガーすること。
 
 ## 7. 実装タスクリスト Implementation Plan
 ### Phase 1 設計と準備
 - [x] 要件と仕様の確定 受け入れ条件をこのドキュメントに定義
-- [ ] インターフェース契約の確定 既存の `wintray.TrayIcon` API から移行するコマンドのリスト作成
-- [ ] Mermaid 図の作成 クラス図・シーケンス図
-- [ ] インターフェース型定義の作成 `TrayCommand`, `TrayHandle`, `TrayOptions`
-- [ ] テスト基盤の確認 `go test` を `go.exe test` で Windows DLL との互換性を確認
+- [x] インターフェース契約の確定 既存の `wintray.TrayIcon` API から移行するコマンドのリスト作成
+- [x] Mermaid 図の作成 クラス図・シーケンス図
+- [x] インターフェース型定義の作成 `TrayCommand`, `TrayHandle`, `TrayOptions`
+- [x] テスト基盤の確認 `go test` を `go.exe test` で Windows DLL との互換性を確認
 
 ### Phase 2 TrayThread の実装
-- [ ] Test TrayThread command queue の失敗するテストケースを追加 (Red)
-- [ ] Impl コマンド実行と `runtime.LockOSThread()` を含む最小実装 (Green)
-- [ ] Refactor `wintray.TrayIcon` のコマンドベース実装へリファクタリング
-- [ ] Integration TrayThread を App 起動パスへ統合し、Win32 API 呼び出しを一元化
-- [ ] Docs Docstrings および `doc/plan/` 記録を更新
+- [x] Test TrayThread command queue の失敗するテストケースを追加 (Red)
+- [x] Impl コマンド実行と `runtime.LockOSThread()` を含む最小実装 (Green)
+- [x] Refactor `wintray.TrayIcon` のコマンドベース実装へリファクタリング
+- [x] Integration TrayThread を App 起動パスへ統合し、Win32 API 呼び出しを一元化
+- [x] Docs Docstrings および `doc/plan/` 記録を更新
 
 ### Phase 3 アプリケーション連携と安定化
-- [ ] Test メニュー/バルーン関連のコマンドテストを追加
-- [ ] Impl App 側の `systrayOnReady` から TrayHandle へ指示する実装（既存の `MenuItem` 連携）
-- [ ] Refactor WinTray 終了フローの `Quit` 処理を TrayThread 経由に変更
-- [ ] Integration `a.Quit` 時に TrayThread を `StopTrayThread` して `sync.WaitGroup` で完了待ち
-- [ ] Docs `doc/dev/issue-tasktry.md` 参照を含むコメントを追加
+- [x] Test メニュー/バルーン関連のコマンドテストを追加
+- [x] Impl App 側の `systrayOnReady` から TrayHandle へ指示する実装（既存の `MenuItem` 連携）
+- [x] Refactor WinTray 終了フローの `Quit` 処理を TrayThread 経由に変更
+- [x] Integration `a.Quit` 時に TrayThread を `StopTrayThread` して `sync.WaitGroup` で完了待ち
+- [x] Docs `doc/dev/issue-tasktry.md` 参照を含むコメントを追加
 
 ### Phase 4 まとめと検証
-- [ ] 全体テストの実行 `go.exe test ./...`（WSL 環境あり）
-- [ ] エッジケースの動作確認 MenuItem Click 前後のロック状態など
-- [ ] ログと例外の確認 トレイスレッド内の `registerAttempts` と `testPending` 状態
-- [ ] ドキュメント更新 仕様、契約、図表の最終版への反映
+- [x] 全体テストの実行 `go.exe test ./...`（WSL 環境あり）
+- [x] エッジケースの動作確認 MenuItem Click 前後のロック状態など
+- [x] ログと例外の確認: `CreateWindowEx` や `Shell_NotifyIcon(NIM_ADD)` 失敗時に `reportTrayFatalError` が呼ばれ、ダイアログ表示→終了となることを検証
+- [x] ドキュメント更新 仕様、契約、図表の最終版への反映
 
 ## 8. 完了の定義 Definition of Done
 ### 8.1 機能 DoD

@@ -1,9 +1,7 @@
 package wintray
 
 import (
-	"fmt"
 	"sync/atomic"
-	"unsafe"
 
 	"github.com/cwchiu/go-winapi"
 )
@@ -49,31 +47,25 @@ func newMenuItem(ti *TrayIcon, title, tooltip string, parent *MenuItem) *MenuIte
 }
 
 func newSeparatorMenuItem(ti *TrayIcon, parent *MenuItem) error {
-	menuItemId := atomic.AddUint32(&ti.currentMenuID, 1)
-	mi := winapi.MENUITEMINFO{
-		FMask: winapi.MIIM_FTYPE | winapi.MIIM_ID | winapi.MIIM_STATE,
-		FType: winapi.MFT_SEPARATOR,
-		WID:   menuItemId,
+	parentID := uint32(0)
+	if parent != nil {
+		parentID = parent.id
 	}
-	mi.CbSize = uint32(unsafe.Sizeof(mi))
-
-	ti.menusLock.RLock()
-	menu := ti.menus[parent.id]
-	ti.menusLock.RUnlock()
-	if !winapi.InsertMenuItem(menu, 0, false, &mi) {
-		return fmt.Errorf("%d", winapi.GetLastError())
-	}
-
+	ti.enqueueCommand(func() {
+		ti.insertSeparator(parentID)
+	})
 	return nil
 }
 
 // update propagates changes on a menu item to systray
 func (item *MenuItem) update() {
 	ti := item.trayIcon
-	ti.menuItemsLock.Lock()
-	ti.menuItems[item.id] = item
-	ti.menuItemsLock.Unlock()
-	ti.updateMenuItem(item)
+	ti.enqueueCommand(func() {
+		ti.menuItemsLock.Lock()
+		ti.menuItems[item.id] = item
+		ti.menuItemsLock.Unlock()
+		ti.updateMenuItem(item)
+	})
 }
 
 func (item *MenuItem) parentID() uint32 {
