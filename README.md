@@ -6,10 +6,6 @@
 
 Unifies the chaotic ssh-agent state under Windows.
 
-original work by: [masahide](https://github.com/masahide/OmniSSHAgent)
-
-I only fixed a dead lock issue ...
-
 ### The Chaotic State of SSH-Agent on Windows
 
 On Windows, there are multiple communication methods for SSH agents, leading to complexity in usage and configuration. The following diagram illustrates the current SSH agent communication landscape on Windows.
