@@ -12,6 +12,33 @@ automatically.
 Read [Why OmniSSHAgent Is Being Redesigned](why-omnisshagent-is-being-redesigned.md)
 before migrating.
 
+## Use PowerShell for Windows Commands
+
+Run every Windows command in this guide from **Windows PowerShell** or
+**PowerShell 7**, not Command Prompt (`cmd.exe`) or Git Bash.
+
+Open the Start menu, type **PowerShell**, and select **Windows PowerShell** or
+**PowerShell**. The prompt normally begins with `PS`, for example:
+
+```text
+PS C:\Users\you>
+```
+
+Before continuing, run:
+
+```powershell
+(Get-Process -Id $PID).ProcessName
+$PSVersionTable.PSVersion
+```
+
+The first command must return `powershell` or `pwsh`. The second command must
+display a PowerShell version; Windows PowerShell 5.1 or later is recommended.
+If either command is reported as unrecognized, close that window and open
+PowerShell.
+
+Commands under the WSL2 sections are the exception: run fenced `bash` commands
+inside the applicable WSL2 distribution.
+
 ## Before You Begin
 
 Do not delete the legacy installation, its settings, Credential Manager

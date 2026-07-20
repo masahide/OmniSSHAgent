@@ -26,7 +26,14 @@ automatically recovers when that agent is restarted.
 
 ## Install
 
-Open PowerShell and run:
+Open Windows PowerShell or PowerShell 7, not Command Prompt (`cmd.exe`) or Git
+Bash. Confirm that the following command returns `powershell` or `pwsh`:
+
+```powershell
+(Get-Process -Id $PID).ProcessName
+```
+
+Then run:
 
 ```powershell
 irm https://raw.githubusercontent.com/masahide/OmniSSHAgent/main/install.ps1 | iex
@@ -80,7 +87,14 @@ OmniSSHAgent does not include WSL proxy commands.
 
 ## Uninstall
 
-Run this PowerShell one-liner:
+Open Windows PowerShell or PowerShell 7, not Command Prompt (`cmd.exe`) or Git
+Bash. Confirm the current shell first:
+
+```powershell
+(Get-Process -Id $PID).ProcessName
+```
+
+It must return `powershell` or `pwsh`. Then run:
 
 ```powershell
 irm https://raw.githubusercontent.com/masahide/OmniSSHAgent/main/uninstall.ps1 | iex
