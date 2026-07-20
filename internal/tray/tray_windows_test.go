@@ -38,7 +38,6 @@ func TestRequiredMenu(t *testing.T) {
 		"Settings (restart required)",
 		"Enable Pageant interface",
 		"Enable Cygwin/MSYS2 interface",
-		"Show signing notifications",
 		"Start with Windows",
 		"Quit",
 	}
@@ -104,9 +103,6 @@ func TestCommandsAndShutdownRejection(t *testing.T) {
 		case config.CygwinEnabled:
 			booleanSettings.CygwinEnabled = !booleanSettings.CygwinEnabled
 			return booleanSettings.CygwinEnabled, nil
-		case config.ShowSignNotifications:
-			booleanSettings.ShowSignNotifications = !booleanSettings.ShowSignNotifications
-			return booleanSettings.ShowSignNotifications, nil
 		}
 		return false, nil
 	}
@@ -117,8 +113,7 @@ func TestCommandsAndShutdownRejection(t *testing.T) {
 	tray.command(menuOpenLogDir)
 	tray.command(menuPageant)
 	tray.command(menuCygwin)
-	tray.command(menuSignNotify)
-	if booleanSettings.PageantEnabled || booleanSettings.CygwinEnabled || !booleanSettings.ShowSignNotifications {
+	if booleanSettings.PageantEnabled || booleanSettings.CygwinEnabled {
 		t.Fatalf("Boolean settings were not toggled: %+v", booleanSettings)
 	}
 	tray.command(menuAutoStart)
@@ -136,7 +131,6 @@ func TestCommandsAndShutdownRejection(t *testing.T) {
 		`C:\Config\config.toml`,
 		`C:\Config`,
 		`C:\Logs`,
-		`create:C:\Config\config.toml`,
 		`create:C:\Config\config.toml`,
 		`create:C:\Config\config.toml`,
 	}

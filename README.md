@@ -1,5 +1,12 @@
 # OmniSSHAgent
 
+> [!IMPORTANT]
+> **Upgrading from an earlier version of OmniSSHAgent?**
+> The project has been redesigned around the Windows OpenSSH agent, and its
+> responsibilities and configuration have changed. Before upgrading, read
+> [Why OmniSSHAgent Is Being Redesigned](docs/why-omnisshagent-is-being-redesigned.md)
+> and follow the [legacy migration guide](docs/migration-from-legacy.md).
+
 OmniSSHAgent is a Windows 11 x86-64 notification-area application that makes
 the Windows OpenSSH agent available to Pageant and Cygwin/MSYS2-compatible SSH
 clients. It does not store private keys or passphrases.
@@ -48,9 +55,9 @@ The first run creates `%APPDATA%\OmniSSHAgent\config.toml`. The tray menu shows
 the current state and can open the configuration, its directory, the log
 directory, or quit cleanly. Check **Start with Windows** in the tray menu to
 start OmniSSHAgent automatically when the current user signs in. This setting
-does not require administrator privileges. The Pageant, Cygwin/MSYS2, and
-signing-notification Boolean settings can also be checked or unchecked in the
-tray menu; TOML changes take effect after restarting OmniSSHAgent.
+does not require administrator privileges. The Pageant and Cygwin/MSYS2
+Boolean settings can also be checked or unchecked in the tray menu; TOML
+changes take effect after restarting OmniSSHAgent.
 
 ## Clients
 

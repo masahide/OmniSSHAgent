@@ -5,10 +5,9 @@ SSH Agent contract; `internal/interfaces` contains Pageant and Cygwin adapters;
 `internal/app` owns state and lifecycle; and `internal/tray` owns its Win32
 message thread.
 
-The tray implementation follows the repository's
-`examples/win-tray-sample-fyne-style`: a hidden normal top-level owner window,
-legacy notification callbacks, `SetForegroundWindow` before `TrackPopupMenu`,
-and menu selection through `WM_COMMAND`.
+The tray implementation uses a hidden normal top-level owner window, legacy
+notification callbacks, `SetForegroundWindow` before `TrackPopupMenu`, and
+menu selection through `WM_COMMAND`.
 
 The tray and executable use the original OmniSSHAgent icon salvaged from the
 archived Wails build's `build/windows/icon.ico`. The exact ICO is embedded by

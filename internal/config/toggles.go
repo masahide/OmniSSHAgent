@@ -7,13 +7,11 @@ type BooleanSetting uint8
 const (
 	PageantEnabled BooleanSetting = iota
 	CygwinEnabled
-	ShowSignNotifications
 )
 
 type BooleanSettings struct {
-	PageantEnabled        bool
-	CygwinEnabled         bool
-	ShowSignNotifications bool
+	PageantEnabled bool
+	CygwinEnabled  bool
 }
 
 func LoadBooleanSettings(path string) (BooleanSettings, error) {
@@ -38,9 +36,6 @@ func ToggleBooleanSetting(path string, setting BooleanSetting) (bool, error) {
 	case CygwinEnabled:
 		cfg.Interfaces.Cygwin.Enabled = !cfg.Interfaces.Cygwin.Enabled
 		enabled = cfg.Interfaces.Cygwin.Enabled
-	case ShowSignNotifications:
-		cfg.Tray.ShowSignNotifications = !cfg.Tray.ShowSignNotifications
-		enabled = cfg.Tray.ShowSignNotifications
 	default:
 		return false, fmt.Errorf("unknown Boolean setting %d", setting)
 	}
@@ -52,8 +47,7 @@ func ToggleBooleanSetting(path string, setting BooleanSetting) (bool, error) {
 
 func booleanSettings(cfg Config) BooleanSettings {
 	return BooleanSettings{
-		PageantEnabled:        cfg.Interfaces.Pageant.Enabled,
-		CygwinEnabled:         cfg.Interfaces.Cygwin.Enabled,
-		ShowSignNotifications: cfg.Tray.ShowSignNotifications,
+		PageantEnabled: cfg.Interfaces.Pageant.Enabled,
+		CygwinEnabled:  cfg.Interfaces.Cygwin.Enabled,
 	}
 }

@@ -61,9 +61,8 @@ const (
 	menuSettings       = 1005
 	menuPageant        = 1006
 	menuCygwin         = 1007
-	menuSignNotify     = 1008
-	menuAutoStart      = 1009
-	menuQuit           = 1010
+	menuAutoStart      = 1008
+	menuQuit           = 1009
 	smCXSmallIcon      = 49
 	smCYSmallIcon      = 50
 	lrDefaultColor     = 0
@@ -130,7 +129,6 @@ func requiredMenuEntries() []menuEntry {
 		{mfString | mfDisabled, menuSettings, "Settings (restart required)"},
 		{mfString | mfUnchecked, menuPageant, "Enable Pageant interface"},
 		{mfString | mfUnchecked, menuCygwin, "Enable Cygwin/MSYS2 interface"},
-		{mfString | mfUnchecked, menuSignNotify, "Show signing notifications"},
 		{mfString | mfUnchecked, menuAutoStart, "Start with Windows"},
 		{mfSeparator, 0, ""},
 		{mfString, menuQuit, "Quit"},
@@ -347,8 +345,6 @@ func (t *Tray) command(id uintptr) {
 		t.toggleConfigSetting(config.PageantEnabled)
 	case menuCygwin:
 		t.toggleConfigSetting(config.CygwinEnabled)
-	case menuSignNotify:
-		t.toggleConfigSetting(config.ShowSignNotifications)
 	case menuAutoStart:
 		enabled, err := autoStartEnabled()
 		if err == nil {
@@ -383,7 +379,6 @@ func (t *Tray) applyMenuChecks() error {
 	if err == nil {
 		t.setMenuCheck(menuPageant, settings.PageantEnabled)
 		t.setMenuCheck(menuCygwin, settings.CygwinEnabled)
-		t.setMenuCheck(menuSignNotify, settings.ShowSignNotifications)
 	}
 	enabled, err := autoStartEnabled()
 	if err != nil {
