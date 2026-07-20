@@ -30,9 +30,10 @@ level = "info"
 - `backend.pipe` accepts a short name or a full `\\.\pipe\...` path.
 - `backend.connect_timeout` must be a positive Go duration.
 - `interfaces.*.enabled` independently enables each compatibility interface.
-- The three Boolean settings can also be changed from the notification-area
-  menu. Pageant, Cygwin/MSYS2, and signing-notification changes take effect
-  after restarting OmniSSHAgent.
+- The Pageant and Cygwin/MSYS2 Boolean settings can also be changed from the
+  notification-area menu and take effect after restarting OmniSSHAgent.
+- `tray.show_sign_notifications` is reserved for a future feature and has no
+  effect in the current release.
 - An empty Cygwin path resolves to
   `%USERPROFILE%\.ssh\omnisshagent-cygwin.sock`; an override must be absolute.
 - `logging.level` accepts `debug`, `info`, `warn`, or `error`.

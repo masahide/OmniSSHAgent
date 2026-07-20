@@ -17,7 +17,6 @@ func TestToggleBooleanSettings(t *testing.T) {
 	}{
 		{PageantEnabled, false},
 		{CygwinEnabled, false},
-		{ShowSignNotifications, true},
 	} {
 		got, err := ToggleBooleanSetting(path, test.setting)
 		if err != nil {
@@ -33,9 +32,8 @@ func TestToggleBooleanSettings(t *testing.T) {
 		t.Fatal(err)
 	}
 	want := BooleanSettings{
-		PageantEnabled:        false,
-		CygwinEnabled:         false,
-		ShowSignNotifications: true,
+		PageantEnabled: false,
+		CygwinEnabled:  false,
 	}
 	if got != want {
 		t.Fatalf("settings=%+v, want %+v", got, want)
