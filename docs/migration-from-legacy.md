@@ -106,7 +106,60 @@ one process can own the `Pageant` window class.
 Do not start the redesigned OmniSSHAgent while the legacy process still owns
 `\\.\pipe\openssh-ssh-agent`, Pageant, or its socket files.
 
-## 4. Select and Prepare a Backend
+## 4. Uninstall the Legacy Windows Application
+
+Back up every reported `settings.json` and keep a copy of the legacy installer
+before uninstalling. The legacy and redesigned installers may use the same
+directory:
+
+```text
+%LOCALAPPDATA%\Programs\OmniSSHAgent
+```
+
+Uninstall the legacy application before installing the redesigned version.
+Otherwise, running the legacy uninstaller later may remove files belonging to
+the redesigned installation.
+
+1. Quit the legacy tray application and confirm its process has stopped.
+2. Open **Settings > Apps > Installed apps**:
+
+   ```powershell
+   Start-Process "ms-settings:appsfeatures"
+   ```
+
+3. Search for **OmniSSHAgent** and select **Uninstall**.
+4. If more than one entry is present, compare its version and install location
+   with the **Installed application records** section from
+   `check-legacy-install.ps1`. Remove only the legacy entry.
+5. Confirm that the legacy process and installed-application record are gone
+   before installing the redesigned version.
+
+The repository's current `uninstall.ps1` is only for the redesigned
+PowerShell installation. It does not know how to run the legacy Wails
+uninstaller and must not be used as a substitute for this step.
+
+### If Installed Apps Has No Legacy Entry
+
+Run `check-legacy-install.ps1` and inspect its `UninstallString` and
+`InstallLocation` output. If the referenced legacy uninstaller still exists,
+inspect that exact path and run the executable directly. Do not pass an
+untrusted `UninstallString` to `Invoke-Expression`.
+
+If neither an Installed Apps entry nor a legacy uninstaller exists:
+
+1. Confirm the legacy process is stopped.
+2. Preserve `settings.json`, the original private-key files, and the legacy
+   installer needed for rollback.
+3. Remove a Startup-folder shortcut only when its target is the confirmed
+   legacy executable.
+4. Delete only the confirmed legacy installation directory.
+5. Leave `%APPDATA%`, Credential Manager entries, and private-key files in
+   place until the redesigned installation passes verification.
+
+Do not manually delete `%LOCALAPPDATA%\Programs\OmniSSHAgent` after the
+redesigned version has been installed there.
+
+## 5. Select and Prepare a Backend
 
 ### Option A: Windows OpenSSH Authentication Agent
 
@@ -141,7 +194,7 @@ Add or import the required keys using 1Password. Do not also start the Windows
 OpenSSH Authentication Agent when both applications are configured to own the
 same Named Pipe.
 
-## 5. Install the Redesigned OmniSSHAgent
+## 6. Install the Redesigned OmniSSHAgent
 
 Run:
 
@@ -165,7 +218,7 @@ Check **Start with Windows** in the tray menu if required. Remove the legacy
 Startup-folder shortcut so that it cannot launch the old executable at the
 next sign-in.
 
-## 6. Configure Compatibility Interfaces
+## 7. Configure Compatibility Interfaces
 
 The default configuration enables Pageant and Cygwin/MSYS2:
 
@@ -198,7 +251,7 @@ ssh-add -l
 Update persistent user or machine `SSH_AUTH_SOCK` values and shell profiles
 that still reference `OmniSSHCygwin.sock` or `OmniSSHAgent.sock`.
 
-## 7. Migrate WSL2
+## 8. Migrate WSL2
 
 The redesigned OmniSSHAgent does not ship `wsl2-ssh-agent-proxy`,
 `omni-socat`, WSL1 sockets, or PowerShell Named Pipe proxy commands.
@@ -249,7 +302,7 @@ For WSL2, follow the
 [Pipeferry OpenSSH agent guide](https://github.com/masahide/pipeferry/blob/main/docs/openssh-agent.md).
 WSL1 integration has no replacement in the redesigned OmniSSHAgent.
 
-## 8. Verify the Migration
+## 9. Verify the Migration
 
 Perform all applicable checks before cleanup:
 
@@ -268,11 +321,10 @@ Logs for the redesigned application are in:
 %LOCALAPPDATA%\OmniSSHAgent\logs
 ```
 
-## 9. Clean Up Legacy Components
+## 10. Clean Up Legacy Components
 
 Only after verification:
 
-- uninstall the legacy application from Windows Installed Apps;
 - delete its Startup-folder shortcut;
 - remove old socket-description and owner files;
 - remove old WSL proxy files and shell-profile entries;
@@ -305,9 +357,12 @@ To roll back before cleanup:
 
 1. Quit the redesigned OmniSSHAgent.
 2. Disable **Start with Windows** for the redesigned application.
-3. Restore the legacy shortcut and shell-profile lines from the backup.
-4. Restore the previous `ssh-agent` service startup mode only if the legacy
+3. Run the redesigned `uninstall.ps1`.
+4. Reinstall the retained legacy installer, if it was uninstalled.
+5. Restore the legacy shortcut, settings, and shell-profile lines from the
+   backup.
+6. Restore the previous `ssh-agent` service startup mode only if the legacy
    configuration requires it.
-5. Start the legacy application and verify its clients.
+7. Start the legacy application and verify its clients.
 
 Do not run both versions simultaneously.
