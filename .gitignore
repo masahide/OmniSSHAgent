@@ -1,0 +1,5 @@
+*.exe
+*.test
+coverage.out
+.gocache/
+.gomodcache/
