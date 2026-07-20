@@ -10,6 +10,8 @@ $uninstaller = Join-Path $repositoryRoot "uninstall.ps1"
 $testRoot = Join-Path ([IO.Path]::GetTempPath()) (
     "omnisshagent-installer-test-" + [Guid]::NewGuid().ToString("N")
 )
+$runKey = "HKCU:\Software\Microsoft\Windows\CurrentVersion\Run"
+$autoStartValueName = $null
 
 New-Item -ItemType Directory -Path $testRoot | Out-Null
 try {
@@ -140,6 +142,9 @@ try {
 
     Copy-Item -LiteralPath $shutdownOwner -Destination $installed -Force
     $uninstallEvent = "Local\OmniSSHAgent-Installer-Uninstall-$([Guid]::NewGuid().ToString("N"))"
+    $autoStartValueName = "OmniSSHAgent-Installer-Test-$([Guid]::NewGuid().ToString("N"))"
+    New-Item -Path $runKey -Force | Out-Null
+    New-ItemProperty -LiteralPath $runKey -Name $autoStartValueName -Value "`"$installed`"" -PropertyType String -Force | Out-Null
     $uninstallOwner = Start-Process -FilePath $installed -ArgumentList $uninstallEvent -PassThru -WindowStyle Hidden
     Start-Sleep -Milliseconds 500
     if ($uninstallOwner.HasExited) {
@@ -149,7 +154,8 @@ try {
         -File $uninstaller `
         -InstallDirectory $installDirectory `
         -ShortcutPath $shortcut `
-        -ShutdownEventName $uninstallEvent
+        -ShutdownEventName $uninstallEvent `
+        -AutoStartValueName $autoStartValueName
     if ($LASTEXITCODE -ne 0) {
         throw "uninstall failed"
     }
@@ -160,9 +166,17 @@ try {
     if ((Test-Path -LiteralPath $installed) -or (Test-Path -LiteralPath $shortcut)) {
         throw "uninstaller left installed files behind"
     }
+    $runProperties = Get-ItemProperty -LiteralPath $runKey
+    $runPropertyNames = @($runProperties.PSObject.Properties | ForEach-Object { $_.Name })
+    if ($runPropertyNames -contains $autoStartValueName) {
+        throw "uninstaller left the autostart registration behind"
+    }
 
     Write-Host "Installer and uninstaller integration tests passed."
 } finally {
+    if (-not [string]::IsNullOrWhiteSpace($autoStartValueName)) {
+        Remove-ItemProperty -LiteralPath $runKey -Name $autoStartValueName -ErrorAction SilentlyContinue
+    }
     $resolved = [IO.Path]::GetFullPath($testRoot)
     $tempRoot = [IO.Path]::GetFullPath([IO.Path]::GetTempPath())
     if (-not $resolved.StartsWith($tempRoot, [StringComparison]::OrdinalIgnoreCase)) {

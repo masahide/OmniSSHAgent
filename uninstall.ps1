@@ -3,6 +3,7 @@ param(
     [string]$InstallDirectory = (Join-Path $env:LOCALAPPDATA "Programs\OmniSSHAgent"),
     [string]$ShortcutPath = (Join-Path ([Environment]::GetFolderPath("Programs")) "OmniSSHAgent.lnk"),
     [string]$ShutdownEventName = "Local\OmniSSHAgent-Shutdown",
+    [string]$AutoStartValueName = "OmniSSHAgent",
     [switch]$Purge
 )
 
@@ -107,6 +108,9 @@ function Stop-InstalledOmniSSHAgent {
 
 $executable = Join-Path $InstallDirectory "OmniSSHAgent.exe"
 Stop-InstalledOmniSSHAgent $executable $ShutdownEventName
+
+$runKey = "HKCU:\Software\Microsoft\Windows\CurrentVersion\Run"
+Remove-ItemProperty -LiteralPath $runKey -Name $AutoStartValueName -ErrorAction SilentlyContinue
 
 if (Test-Path -LiteralPath $executable) {
     Remove-Item -LiteralPath $executable -Force

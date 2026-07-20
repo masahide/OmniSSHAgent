@@ -14,8 +14,10 @@ WSL users should migrate to
 The Windows x86-64 application can now be installed or updated for the current
 user with the PowerShell one-liner in the README. The installer verifies the
 GitHub Release executable against its published SHA-256 checksum. It does not
-register Windows logon autostart or provide background automatic updates.
+enable Windows logon autostart by default; users can opt in from the checked
+notification-area menu. It does not provide background automatic updates.
 The matching uninstall one-liner removes the executable and Start menu
-shortcut while preserving configuration and logs. Install, update, and
-uninstall stop a running installed instance before changing its files,
-preferring the application's graceful shutdown event.
+shortcut, including any autostart registration, while preserving configuration
+and logs. Install, update, and uninstall stop a running installed instance
+before changing its files, preferring the application's graceful shutdown
+event.

@@ -46,7 +46,11 @@ go build -trimpath -ldflags="-H=windowsgui" -o OmniSSHAgent.exe ./cmd/omnisshage
 
 The first run creates `%APPDATA%\OmniSSHAgent\config.toml`. The tray menu shows
 the current state and can open the configuration, its directory, the log
-directory, or quit cleanly.
+directory, or quit cleanly. Check **Start with Windows** in the tray menu to
+start OmniSSHAgent automatically when the current user signs in. This setting
+does not require administrator privileges. The Pageant, Cygwin/MSYS2, and
+signing-notification Boolean settings can also be checked or unchecked in the
+tray menu; TOML changes take effect after restarting OmniSSHAgent.
 
 ## Clients
 
@@ -77,11 +81,11 @@ irm https://raw.githubusercontent.com/masahide/OmniSSHAgent/main/uninstall.ps1 |
 
 Configuration and logs are retained. Remove `%APPDATA%\OmniSSHAgent` and
 `%LOCALAPPDATA%\OmniSSHAgent` separately if they are no longer needed.
-The uninstaller stops an installed, running OmniSSHAgent before removing it.
+The uninstaller stops an installed, running OmniSSHAgent and removes its
+**Start with Windows** registration before removing it.
 
 ## Known limitations
 
 Configuration changes require a restart. There is no key-management GUI,
-autostart registration, automatic updater, Authenticode signature, or log
-retention policy. Windows 10, ARM64, and non-Windows platforms are not
-supported by this MVP.
+automatic updater, Authenticode signature, or log retention policy. Windows
+10, ARM64, and non-Windows platforms are not supported by this MVP.
