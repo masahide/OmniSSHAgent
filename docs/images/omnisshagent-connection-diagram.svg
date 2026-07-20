@@ -1,0 +1,123 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" width="1440" height="940" viewBox="0 0 1440 940" role="img" aria-labelledby="title desc">
+  <title id="title">OmniSSHAgent connection architecture</title>
+  <desc id="desc">The Windows OpenSSH Authentication Agent is the shared key and signing backend. OmniSSHAgent exposes Pageant and Cygwin or MSYS2 compatibility interfaces for Windows applications. WSL2 uses Pipeferry and connects directly to the same OpenSSH Named Pipe without passing through OmniSSHAgent.</desc>
+
+  <defs>
+    <marker id="arrowBlue" markerWidth="5" markerHeight="5" refX="4.4" refY="2.5" orient="auto" markerUnits="strokeWidth">
+      <path d="M0 0 L5 2.5 L0 5 Z" fill="#2563eb"/>
+    </marker>
+    <marker id="arrowTeal" markerWidth="5" markerHeight="5" refX="4.4" refY="2.5" orient="auto" markerUnits="strokeWidth">
+      <path d="M0 0 L5 2.5 L0 5 Z" fill="#0f766e"/>
+    </marker>
+    <style>
+      .font { font-family: "Segoe UI", Arial, sans-serif; }
+      .title { font-size: 30px; font-weight: 700; fill: #0f172a; }
+      .section { font-size: 21px; font-weight: 700; fill: #334155; }
+      .box-title { font-size: 19px; font-weight: 700; }
+      .subtitle { font-size: 15px; font-weight: 500; }
+      .small { font-size: 14px; font-weight: 500; }
+      .tiny { font-size: 13px; font-weight: 500; }
+      .mono { font-family: Consolas, "Courier New", monospace; font-size: 15px; font-weight: 600; }
+      .label { font-size: 13px; font-weight: 700; }
+    </style>
+  </defs>
+
+  <rect width="1440" height="940" fill="#f8fafc"/>
+  <text x="720" y="42" text-anchor="middle" class="font title">OmniSSHAgent Connection Architecture</text>
+
+  <!-- Windows area -->
+  <rect x="40" y="65" width="1360" height="575" rx="24" fill="#ffffff" stroke="#94a3b8" stroke-width="2"/>
+  <path d="M64 65 H1376 A24 24 0 0 1 1400 89 V117 H40 V89 A24 24 0 0 1 64 65 Z" fill="#e2e8f0"/>
+  <text x="70" y="99" class="font section">Windows 11</text>
+
+  <!-- OmniSSHAgent at center -->
+  <rect x="530" y="205" width="380" height="135" rx="20" fill="#2563eb" stroke="#1d4ed8" stroke-width="2"/>
+  <text x="720" y="245" text-anchor="middle" class="font box-title" fill="#ffffff">OmniSSHAgent</text>
+  <text x="720" y="274" text-anchor="middle" class="font subtitle" fill="#dbeafe">Windows SSH agent compatibility bridge</text>
+  <text x="720" y="303" text-anchor="middle" class="font small" fill="#eff6ff">No private key or passphrase storage</text>
+  <text x="720" y="326" text-anchor="middle" class="font tiny" fill="#bfdbfe">Connects to the backend for each request</text>
+
+  <!-- Pageant route -->
+  <rect x="70" y="222" width="270" height="100" rx="18" fill="#ffffff" stroke="#a5b4fc" stroke-width="2"/>
+  <text x="205" y="260" text-anchor="middle" class="font box-title" fill="#312e81">Pageant clients</text>
+  <text x="205" y="289" text-anchor="middle" class="font small" fill="#475569">PuTTY · WinSCP · TortoiseGit</text>
+  <text x="205" y="311" text-anchor="middle" class="font tiny" fill="#6366f1">Legacy Pageant protocol</text>
+
+  <rect x="375" y="222" width="120" height="100" rx="18" fill="#eef2ff" stroke="#4f46e5" stroke-width="2"/>
+  <text x="435" y="261" text-anchor="middle" class="font box-title" fill="#312e81">Pageant</text>
+  <text x="435" y="287" text-anchor="middle" class="font small" fill="#4338ca">interface</text>
+  <text x="435" y="310" text-anchor="middle" class="font tiny" fill="#6366f1">Optional</text>
+
+  <line x1="340" y1="272" x2="371" y2="272" stroke="#4f46e5" stroke-width="4" marker-end="url(#arrowBlue)"/>
+  <line x1="495" y1="272" x2="526" y2="272" stroke="#2563eb" stroke-width="4" marker-end="url(#arrowBlue)"/>
+
+  <!-- Cygwin route -->
+  <rect x="945" y="222" width="155" height="100" rx="18" fill="#ecfeff" stroke="#0891b2" stroke-width="2"/>
+  <text x="1022" y="260" text-anchor="middle" class="font box-title" fill="#164e63">Cygwin/MSYS2</text>
+  <text x="1022" y="286" text-anchor="middle" class="font small" fill="#0e7490">interface</text>
+  <text x="1022" y="310" text-anchor="middle" class="font tiny" fill="#0891b2">Optional</text>
+
+  <rect x="1135" y="222" width="235" height="100" rx="18" fill="#ffffff" stroke="#67e8f9" stroke-width="2"/>
+  <text x="1252" y="260" text-anchor="middle" class="font box-title" fill="#164e63">Cygwin clients</text>
+  <text x="1252" y="289" text-anchor="middle" class="font small" fill="#475569">Git for Windows · MSYS2</text>
+  <text x="1252" y="311" text-anchor="middle" class="font tiny" fill="#0891b2">Cygwin-compatible socket</text>
+
+  <line x1="1131" y1="272" x2="1104" y2="272" stroke="#0891b2" stroke-width="4" marker-end="url(#arrowBlue)"/>
+  <line x1="941" y1="272" x2="914" y2="272" stroke="#2563eb" stroke-width="4" marker-end="url(#arrowBlue)"/>
+
+  <!-- Named Pipe below Omni -->
+  <rect x="535" y="405" width="370" height="58" rx="14" fill="#dbeafe" stroke="#2563eb" stroke-width="2"/>
+  <text x="720" y="440" text-anchor="middle" class="font mono" fill="#1e3a8a">\\.\pipe\openssh-ssh-agent</text>
+  <line x1="720" y1="340" x2="720" y2="401" stroke="#2563eb" stroke-width="4" marker-end="url(#arrowBlue)"/>
+  <text x="738" y="378" class="font label" fill="#1d4ed8">OpenSSH agent protocol</text>
+
+  <!-- Shared OpenSSH backend below Named Pipe -->
+  <rect x="480" y="490" width="480" height="104" rx="18" fill="#1e3a8a" stroke="#172554" stroke-width="2"/>
+  <text x="720" y="528" text-anchor="middle" class="font box-title" fill="#ffffff">Windows OpenSSH Authentication Agent</text>
+  <text x="720" y="557" text-anchor="middle" class="font subtitle" fill="#dbeafe">Stores keys and performs SSH signing</text>
+  <line x1="720" y1="486" x2="720" y2="467" stroke="#2563eb" stroke-width="4" marker-end="url(#arrowBlue)"/>
+
+  <!-- Pipeferry Windows bridge moved lower right next to Named Pipe -->
+  <rect x="1015" y="385" width="315" height="96" rx="18" fill="#ccfbf1" stroke="#0f766e" stroke-width="2"/>
+  <text x="1173" y="421" text-anchor="middle" class="font box-title" fill="#134e4a">Pipeferry Windows bridge</text>
+  <text x="1173" y="450" text-anchor="middle" class="font small" fill="#0f766e">pipeferry.exe npipe-connect</text>
+  <text x="1173" y="471" text-anchor="middle" class="font tiny" fill="#0f766e">Used only by WSL2</text>
+
+  <!-- Bridge to Named Pipe -->
+  <path d="M1015 433 H950 Q930 433 930 434 H909" fill="none" stroke="#0f766e" stroke-width="4" marker-end="url(#arrowTeal)"/>
+
+  <!-- Separation note -->
+  <rect x="455" y="608" width="530" height="44" rx="12" fill="#f1f5f9" stroke="#cbd5e1" stroke-width="1.5"/>
+  <text x="720" y="635" text-anchor="middle" class="font small" fill="#334155">WSL2 uses Pipeferry, not OmniSSHAgent.</text>
+
+  <!-- WSL2 area -->
+  <rect x="40" y="675" width="1360" height="210" rx="24" fill="#f0fdfa" stroke="#5eead4" stroke-width="2"/>
+  <path d="M64 675 H1376 A24 24 0 0 1 1400 699 V727 H40 V699 A24 24 0 0 1 64 675 Z" fill="#ccfbf1"/>
+  <text x="70" y="709" class="font section" fill="#134e4a">WSL2 Linux distribution</text>
+
+  <rect x="95" y="742" width="275" height="100" rx="18" fill="#ffffff" stroke="#2dd4bf" stroke-width="2"/>
+  <text x="232" y="780" text-anchor="middle" class="font box-title" fill="#134e4a">Linux SSH clients</text>
+  <text x="232" y="809" text-anchor="middle" class="font small" fill="#475569">ssh · git · ssh-add</text>
+  <text x="232" y="831" text-anchor="middle" class="font tiny" fill="#0f766e">Use SSH_AUTH_SOCK</text>
+
+  <rect x="430" y="750" width="250" height="84" rx="16" fill="#ffffff" stroke="#2dd4bf" stroke-width="2"/>
+  <text x="555" y="785" text-anchor="middle" class="font box-title" fill="#134e4a">Unix Domain Socket</text>
+  <text x="555" y="812" text-anchor="middle" class="font mono" fill="#0f766e">SSH_AUTH_SOCK</text>
+
+  <rect x="745" y="742" width="300" height="100" rx="18" fill="#0f766e" stroke="#115e59" stroke-width="2"/>
+  <text x="895" y="780" text-anchor="middle" class="font box-title" fill="#ffffff">Pipeferry</text>
+  <text x="895" y="809" text-anchor="middle" class="font small" fill="#ccfbf1">systemd user service</text>
+  <text x="895" y="831" text-anchor="middle" class="font tiny" fill="#99f6e4">Forwards the SSH agent stream</text>
+
+  <line x1="370" y1="792" x2="426" y2="792" stroke="#0f766e" stroke-width="4" marker-end="url(#arrowTeal)"/>
+  <line x1="680" y1="792" x2="741" y2="792" stroke="#0f766e" stroke-width="4" marker-end="url(#arrowTeal)"/>
+
+  <!-- Cross-boundary route now ends at the Windows bridge -->
+  <path d="M1045 792 H1360 V433 H1330" fill="none" stroke="#0f766e" stroke-width="5" stroke-dasharray="10 8" marker-end="url(#arrowTeal)"/>
+  <rect x="980" y="615" width="330" height="54" rx="10" fill="#ffffff" stroke="#5eead4" stroke-width="1.5"/>
+  <text x="1145" y="638" text-anchor="middle" class="font tiny" fill="#0f766e">Pipeferry crosses the Windows and WSL2</text>
+  <text x="1145" y="658" text-anchor="middle" class="font tiny" fill="#0f766e">boundary independently of OmniSSHAgent</text>
+
+  <text x="720" y="920" text-anchor="middle" class="font tiny" fill="#64748b">Arrows show request flow. Responses return over the same connection. Private keys remain in the Windows OpenSSH Authentication Agent.</text>
+</svg>
