@@ -22,6 +22,11 @@ jobs:
         run: |
           gofmt -w cmd internal
           if (git status --short) { throw "gofmt produced changes" }
+      - name: Executable resources
+        shell: pwsh
+        run: |
+          go generate ./cmd/omnisshagent
+          if (git status --short) { throw "go generate produced changes" }
       - run: go vet ./...
       - run: go test ./...
       - name: Compile build-tagged E2E tests

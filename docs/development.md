@@ -10,6 +10,14 @@ The tray implementation follows the repository's
 legacy notification callbacks, `SetForegroundWindow` before `TrackPopupMenu`,
 and menu selection through `WM_COMMAND`.
 
+The tray and executable use the original OmniSSHAgent icon salvaged from the
+archived Wails build's `build/windows/icon.ico`. The exact ICO is embedded by
+`internal/tray`, while the checked-in Windows COFF resource is regenerated with:
+
+```powershell
+go generate ./cmd/omnisshagent
+```
+
 Pageant startup conflicts are represented by the Degraded tooltip/menu state
 and the log. The MVP does not also show a one-time balloon notification.
 
@@ -28,4 +36,5 @@ The archived implementation under `old/` was checked on 2026-07-20. Its
 package tests passed except for the root package, and both `go test ./...` and
 `go build ./...` stopped at `main.go:28:12` because the archived
 `build/appicon.png` embed input is absent. This is the recorded migration
-baseline; the new MVP does not use that Wails asset.
+baseline. The old ICO was recovered from repository history for visual
+continuity, but the new MVP has no Wails runtime or build dependency.

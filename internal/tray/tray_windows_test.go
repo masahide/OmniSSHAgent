@@ -3,11 +3,24 @@
 package tray
 
 import (
+	"crypto/sha256"
+	"fmt"
 	"reflect"
 	"testing"
 
 	"github.com/masahide/OmniSSHAgent/internal/app"
 )
+
+func TestTrayUsesOriginalOmniSSHAgentIcon(t *testing.T) {
+	icon, err := assets.ReadFile("assets/tray.ico")
+	if err != nil {
+		t.Fatal(err)
+	}
+	const want = "f1510437cf0c19fc0496ad43f39c76d6e4dd2c7cf43a6d6fb5e844536554268a"
+	if got := fmt.Sprintf("%x", sha256.Sum256(icon)); got != want {
+		t.Fatalf("tray icon SHA-256=%s, want original OmniSSHAgent icon %s", got, want)
+	}
+}
 
 func TestRequiredMenu(t *testing.T) {
 	var labels []string
