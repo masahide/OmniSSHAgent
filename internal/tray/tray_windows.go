@@ -13,6 +13,7 @@ import (
 	"unsafe"
 
 	"github.com/masahide/OmniSSHAgent/internal/app"
+	"github.com/masahide/OmniSSHAgent/internal/autostart"
 	"github.com/masahide/OmniSSHAgent/internal/config"
 	"github.com/masahide/OmniSSHAgent/internal/open"
 	"golang.org/x/sys/windows"
@@ -48,6 +49,8 @@ const (
 	swHide             = 0
 	mfString           = 0
 	mfDisabled         = 2
+	mfChecked          = 8
+	mfUnchecked        = 0
 	mfSeparator        = 0x800
 	tpmLeftAlign       = 0
 	tpmBottomAlign     = 0x20
@@ -55,7 +58,12 @@ const (
 	menuOpenConfig     = 1002
 	menuOpenConfigDir  = 1003
 	menuOpenLogDir     = 1004
-	menuQuit           = 1005
+	menuSettings       = 1005
+	menuPageant        = 1006
+	menuCygwin         = 1007
+	menuSignNotify     = 1008
+	menuAutoStart      = 1009
+	menuQuit           = 1010
 	smCXSmallIcon      = 49
 	smCYSmallIcon      = 50
 	lrDefaultColor     = 0
@@ -83,6 +91,7 @@ var (
 	createPopupMenu        = user32.NewProc("CreatePopupMenu")
 	appendMenu             = user32.NewProc("AppendMenuW")
 	modifyMenu             = user32.NewProc("ModifyMenuW")
+	checkMenuItem          = user32.NewProc("CheckMenuItem")
 	destroyMenu            = user32.NewProc("DestroyMenu")
 	getCursorPos           = user32.NewProc("GetCursorPos")
 	setForegroundWindow    = user32.NewProc("SetForegroundWindow")
@@ -98,6 +107,10 @@ var (
 	openPath               = open.Path
 	openConfiguration      = open.Configuration
 	createDefaultConfig    = config.CreateDefault
+	autoStartEnabled       = autostart.Enabled
+	setAutoStartEnabled    = autostart.SetEnabled
+	loadBooleanSettings    = config.LoadBooleanSettings
+	toggleBooleanSetting   = config.ToggleBooleanSetting
 )
 
 type menuEntry struct {
@@ -113,6 +126,12 @@ func requiredMenuEntries() []menuEntry {
 		{mfString, menuOpenConfig, "Open configuration"},
 		{mfString, menuOpenConfigDir, "Open configuration directory"},
 		{mfString, menuOpenLogDir, "Open log directory"},
+		{mfSeparator, 0, ""},
+		{mfString | mfDisabled, menuSettings, "Settings (restart required)"},
+		{mfString | mfUnchecked, menuPageant, "Enable Pageant interface"},
+		{mfString | mfUnchecked, menuCygwin, "Enable Cygwin/MSYS2 interface"},
+		{mfString | mfUnchecked, menuSignNotify, "Show signing notifications"},
+		{mfString | mfUnchecked, menuAutoStart, "Start with Windows"},
 		{mfSeparator, 0, ""},
 		{mfString, menuQuit, "Quit"},
 	}
@@ -260,6 +279,7 @@ func (t *Tray) initialize() error {
 			return err
 		}
 	}
+	_ = t.applyMenuChecks()
 	t.nid = notifyIconData{Size: uint32(unsafe.Sizeof(notifyIconData{})), Window: window, ID: 1, Flags: nifMessage | nifIcon | nifTip, Callback: wmTray, Icon: t.icon}
 	t.applyState()
 	return nil
@@ -299,6 +319,7 @@ func stateLabel(state app.State) string {
 }
 
 func (t *Tray) showMenu() {
+	_ = t.applyMenuChecks()
 	var p point
 	if result, _, _ := getCursorPos.Call(uintptr(unsafe.Pointer(&p))); result == 0 {
 		return
@@ -322,11 +343,62 @@ func (t *Tray) command(id uintptr) {
 		_ = openPath(filepathDir(t.configPath))
 	case menuOpenLogDir:
 		_ = openPath(t.logDirectory)
+	case menuPageant:
+		t.toggleConfigSetting(config.PageantEnabled)
+	case menuCygwin:
+		t.toggleConfigSetting(config.CygwinEnabled)
+	case menuSignNotify:
+		t.toggleConfigSetting(config.ShowSignNotifications)
+	case menuAutoStart:
+		enabled, err := autoStartEnabled()
+		if err == nil {
+			err = setAutoStartEnabled(!enabled)
+		}
+		if err != nil {
+			ShowFatal("Auto-start setting failed", err)
+			return
+		}
+		_ = t.applyMenuChecks()
 	case menuQuit:
 		if t.onQuit != nil {
 			go t.onQuit()
 		}
 	}
+}
+
+func (t *Tray) toggleConfigSetting(setting config.BooleanSetting) {
+	if _, err := createDefaultConfig(t.configPath); err != nil {
+		ShowFatal("Configuration update failed", err)
+		return
+	}
+	if _, err := toggleBooleanSetting(t.configPath, setting); err != nil {
+		ShowFatal("Configuration update failed", err)
+		return
+	}
+	_ = t.applyMenuChecks()
+}
+
+func (t *Tray) applyMenuChecks() error {
+	settings, err := loadBooleanSettings(t.configPath)
+	if err == nil {
+		t.setMenuCheck(menuPageant, settings.PageantEnabled)
+		t.setMenuCheck(menuCygwin, settings.CygwinEnabled)
+		t.setMenuCheck(menuSignNotify, settings.ShowSignNotifications)
+	}
+	enabled, err := autoStartEnabled()
+	if err != nil {
+		return err
+	}
+	t.setMenuCheck(menuAutoStart, enabled)
+	return nil
+}
+
+func (t *Tray) setMenuCheck(id uintptr, enabled bool) {
+	flags := uintptr(mfUnchecked)
+	if enabled {
+		flags = mfChecked
+	}
+	checkMenuItem.Call(t.menu, id, flags)
 }
 
 func (t *Tray) quit() {

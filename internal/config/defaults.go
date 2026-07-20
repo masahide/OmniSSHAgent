@@ -39,34 +39,50 @@ func CreateDefault(path string) (bool, error) {
 	if err != nil {
 		return false, fmt.Errorf("encode default configuration: %w", err)
 	}
+	if err := write(path, data); err != nil {
+		return false, err
+	}
+	return true, nil
+}
+
+// Save atomically replaces path with cfg.
+func Save(path string, cfg Config) error {
+	data, err := toml.Marshal(cfg)
+	if err != nil {
+		return fmt.Errorf("encode configuration: %w", err)
+	}
+	return write(path, data)
+}
+
+func write(path string, data []byte) error {
 	if err := os.MkdirAll(filepath.Dir(path), 0700); err != nil {
-		return false, fmt.Errorf("create configuration directory: %w", err)
+		return fmt.Errorf("create configuration directory: %w", err)
 	}
 	tmp, err := os.CreateTemp(filepath.Dir(path), ".config-*.tmp")
 	if err != nil {
-		return false, fmt.Errorf("create temporary configuration: %w", err)
+		return fmt.Errorf("create temporary configuration: %w", err)
 	}
 	tmpName := tmp.Name()
 	defer os.Remove(tmpName)
 	if err := tmp.Chmod(0600); err != nil {
 		tmp.Close()
-		return false, fmt.Errorf("protect temporary configuration: %w", err)
+		return fmt.Errorf("protect temporary configuration: %w", err)
 	}
 	if _, err := tmp.Write(data); err != nil {
 		tmp.Close()
-		return false, fmt.Errorf("write temporary configuration: %w", err)
+		return fmt.Errorf("write temporary configuration: %w", err)
 	}
 	if err := tmp.Sync(); err != nil {
 		tmp.Close()
-		return false, fmt.Errorf("flush temporary configuration: %w", err)
+		return fmt.Errorf("flush temporary configuration: %w", err)
 	}
 	if err := tmp.Close(); err != nil {
-		return false, fmt.Errorf("close temporary configuration: %w", err)
+		return fmt.Errorf("close temporary configuration: %w", err)
 	}
 	if err := os.Rename(tmpName, path); err != nil {
-		return false, fmt.Errorf("install configuration: %w", err)
+		return fmt.Errorf("install configuration: %w", err)
 	}
-	return true, nil
+	return nil
 }
 
 func LoadRuntime(path string) (RuntimeConfig, error) {
