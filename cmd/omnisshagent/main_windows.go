@@ -15,6 +15,7 @@ import (
 	"github.com/masahide/OmniSSHAgent/internal/backend/openssh"
 	"github.com/masahide/OmniSSHAgent/internal/cli"
 	"github.com/masahide/OmniSSHAgent/internal/config"
+	"github.com/masahide/OmniSSHAgent/internal/control"
 	"github.com/masahide/OmniSSHAgent/internal/interfaces"
 	"github.com/masahide/OmniSSHAgent/internal/interfaces/cygwin"
 	"github.com/masahide/OmniSSHAgent/internal/interfaces/pageant"
@@ -39,6 +40,12 @@ func run(args []string) int {
 		return cli.ExitWindows
 	}
 	defer mutex.Close()
+	shutdownEvent, err := control.NewShutdownEvent(control.ShutdownEventName)
+	if err != nil {
+		fmt.Fprintln(os.Stderr, err)
+		return cli.ExitWindows
+	}
+	defer shutdownEvent.Close()
 
 	configPath, err := config.DefaultConfigPath()
 	if err != nil {
@@ -56,6 +63,11 @@ func run(args []string) int {
 
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
+	go func() {
+		if err := shutdownEvent.Wait(ctx); err == nil {
+			cancel()
+		}
+	}()
 	t := tray.New(configPath, logDir, cancel)
 	trayDone := make(chan error, 1)
 	go func() { trayDone <- t.Run(ctx) }()

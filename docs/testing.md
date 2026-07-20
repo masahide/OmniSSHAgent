@@ -7,6 +7,7 @@ go test ./...
 go vet ./...
 gofmt -w cmd internal
 go mod tidy
+./scripts/test-installer.ps1
 go build -trimpath -o OmniSSHAgent-console.exe ./cmd/omnisshagent
 go build -trimpath -ldflags="-H=windowsgui" -o OmniSSHAgent.exe ./cmd/omnisshagent
 ```
@@ -89,6 +90,14 @@ integration test.
 The release metadata build was also verified with explicit `Version`, `Commit`,
 and UTC `BuildTime` ldflags; the `version` command returned all injected values
 plus `windows/amd64`.
+
+The PowerShell installer integration test used the real GUI release build and
+verified first install, Start menu shortcut creation, SHA-256 rejection,
+graceful replacement of a running event-aware process, forced replacement of
+an event-incompatible legacy process, and uninstall. A separate live GUI test
+confirmed that `uninstall.ps1` stopped the real OmniSSHAgent with exit code 0
+and removed its executable, shortcut, Cygwin socket description, and owner
+marker.
 
 Together, the live checks above and the final Windows test, vet, format,
 module-tidiness, console-build, and GUI-build checks satisfy AC-01 through

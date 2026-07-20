@@ -27,6 +27,23 @@ Build metadata can be injected with:
 go build -ldflags="-X github.com/masahide/OmniSSHAgent/internal/cli.Version=v0.1.0 -X github.com/masahide/OmniSSHAgent/internal/cli.Commit=$env:GITHUB_SHA -X github.com/masahide/OmniSSHAgent/internal/cli.BuildTime=2026-07-20T00:00:00Z" ./cmd/omnisshagent
 ```
 
+`install.ps1` installs the fixed release asset
+`OmniSSHAgent-windows-amd64.exe` after verifying its adjacent `.sha256` file.
+`uninstall.ps1` removes the installed executable and shortcut while retaining
+configuration and logs by default. Both scripts signal the application's
+named shutdown event and wait for clean resource release before replacing or
+removing a running executable. They use a path-restricted forced stop only for
+an older binary that does not expose the event. Run their Windows PowerShell
+integration test with:
+
+```powershell
+./scripts/test-installer.ps1
+```
+
+Pushing a `v*` tag runs `.github/workflows/release.yml`, injects the tag,
+commit, and UTC build time, and publishes both files to GitHub Releases. The
+installer URL in the README becomes usable after that tagged release succeeds.
+
 Never log protocol payloads, private keys, passphrases, or signing data.
 Windows E2E steps are in [testing.md](testing.md).
 

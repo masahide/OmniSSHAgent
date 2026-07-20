@@ -17,7 +17,24 @@ ssh-add
 OmniSSHAgent connects to `\\.\pipe\openssh-ssh-agent` for each request, so it
 automatically recovers when that agent is restarted.
 
-## Build and run
+## Install
+
+Open PowerShell and run:
+
+```powershell
+irm https://raw.githubusercontent.com/masahide/OmniSSHAgent/main/install.ps1 | iex
+```
+
+Administrator privileges are not required. The installer downloads the latest
+Windows x86-64 release, verifies its SHA-256 checksum, installs it under
+`%LOCALAPPDATA%\Programs\OmniSSHAgent`, adds a Start menu shortcut, and starts
+the notification-area application.
+
+To update, run the same command again. The installer asks a current
+OmniSSHAgent process to shut down cleanly, replaces the executable, and starts
+the new version.
+
+## Build from source
 
 Go 1.25.6 is required.
 
@@ -50,8 +67,21 @@ WSL integration is provided separately by
 [Pipeferry](https://github.com/masahide/pipeferry/blob/main/docs/openssh-agent.md).
 OmniSSHAgent does not include WSL proxy commands.
 
+## Uninstall
+
+Run this PowerShell one-liner:
+
+```powershell
+irm https://raw.githubusercontent.com/masahide/OmniSSHAgent/main/uninstall.ps1 | iex
+```
+
+Configuration and logs are retained. Remove `%APPDATA%\OmniSSHAgent` and
+`%LOCALAPPDATA%\OmniSSHAgent` separately if they are no longer needed.
+The uninstaller stops an installed, running OmniSSHAgent before removing it.
+
 ## Known limitations
 
 Configuration changes require a restart. There is no key-management GUI,
-autostart registration, installer, updater, or log retention policy. Windows
-10, ARM64, and non-Windows platforms are not supported by this MVP.
+autostart registration, automatic updater, Authenticode signature, or log
+retention policy. Windows 10, ARM64, and non-Windows platforms are not
+supported by this MVP.

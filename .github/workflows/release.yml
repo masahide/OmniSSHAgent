@@ -1,0 +1,50 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version: 1.25.6
+          cache: true
+      - name: Verify
+        shell: pwsh
+        run: |
+          go generate ./cmd/omnisshagent
+          if (git status --short) { throw "go generate produced changes" }
+          gofmt -w cmd internal
+          if (git status --short) { throw "gofmt produced changes" }
+          go vet ./...
+          go test ./...
+          ./scripts/test-installer.ps1
+      - name: Build release
+        shell: pwsh
+        run: |
+          $version = "${{ github.ref_name }}"
+          $commit = "${{ github.sha }}"
+          $buildTime = (Get-Date).ToUniversalTime().ToString("yyyy-MM-ddTHH:mm:ssZ")
+          $ldflags = "-H=windowsgui -X github.com/masahide/OmniSSHAgent/internal/cli.Version=$version -X github.com/masahide/OmniSSHAgent/internal/cli.Commit=$commit -X github.com/masahide/OmniSSHAgent/internal/cli.BuildTime=$buildTime"
+          go build -trimpath -ldflags="$ldflags" -o OmniSSHAgent-windows-amd64.exe ./cmd/omnisshagent
+          $hash = (Get-FileHash OmniSSHAgent-windows-amd64.exe -Algorithm SHA256).Hash.ToLowerInvariant()
+          "$hash  OmniSSHAgent-windows-amd64.exe" | Set-Content -Encoding ascii OmniSSHAgent-windows-amd64.exe.sha256
+      - name: Publish GitHub Release
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create "${{ github.ref_name }}" `
+            OmniSSHAgent-windows-amd64.exe `
+            OmniSSHAgent-windows-amd64.exe.sha256 `
+            --repo "${{ github.repository }}" `
+            --title "${{ github.ref_name }}" `
+            --generate-notes
