@@ -14,6 +14,7 @@ import (
 
 	"github.com/masahide/OmniSSHAgent/internal/app"
 	"github.com/masahide/OmniSSHAgent/internal/autostart"
+	"github.com/masahide/OmniSSHAgent/internal/backend"
 	"github.com/masahide/OmniSSHAgent/internal/config"
 	"github.com/masahide/OmniSSHAgent/internal/open"
 	"golang.org/x/sys/windows"
@@ -110,6 +111,7 @@ var (
 	setAutoStartEnabled    = autostart.SetEnabled
 	loadBooleanSettings    = config.LoadBooleanSettings
 	toggleBooleanSetting   = config.ToggleBooleanSetting
+	openSettingsDialog     = func(t *Tray) { t.openSettings() }
 )
 
 type menuEntry struct {
@@ -126,7 +128,7 @@ func requiredMenuEntries() []menuEntry {
 		{mfString, menuOpenConfigDir, "Open configuration directory"},
 		{mfString, menuOpenLogDir, "Open log directory"},
 		{mfSeparator, 0, ""},
-		{mfString | mfDisabled, menuSettings, "Settings (restart required)"},
+		{mfString, menuSettings, "Settings"},
 		{mfString | mfUnchecked, menuPageant, "Enable Pageant interface"},
 		{mfString | mfUnchecked, menuCygwin, "Enable Cygwin/MSYS2 interface"},
 		{mfString | mfUnchecked, menuAutoStart, "Start with Windows"},
@@ -173,6 +175,7 @@ type Tray struct {
 	onQuit             func()
 	mu                 sync.Mutex
 	state              app.State
+	agent              backend.Backend
 	window, icon, menu uintptr
 	nid                notifyIconData
 	taskbarCreated     uint32
@@ -341,6 +344,8 @@ func (t *Tray) command(id uintptr) {
 		_ = openPath(filepathDir(t.configPath))
 	case menuOpenLogDir:
 		_ = openPath(t.logDirectory)
+	case menuSettings:
+		openSettingsDialog(t)
 	case menuPageant:
 		t.toggleConfigSetting(config.PageantEnabled)
 	case menuCygwin:

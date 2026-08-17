@@ -129,6 +129,7 @@ The first run creates:
 The notification-area menu provides:
 
 - Current application state
+- Settings
 - Pageant interface enable or disable setting
 - Cygwin/MSYS2 interface enable or disable setting
 - Start with Windows setting
@@ -137,12 +138,17 @@ The notification-area menu provides:
 - Open log directory
 - Quit
 
+**Settings** opens a native dialog for the same options as `config.toml`, plus
+**Manage keys** to add or remove keys in the Windows OpenSSH agent. Interface
+and backend changes apply after OmniSSHAgent is restarted. Adding a key asks
+for the passphrase if the file is encrypted; the passphrase is not stored.
+
 The **Start with Windows** setting registers OmniSSHAgent for the current user
 and does not require administrator privileges.
 
 Changes made directly to `config.toml` take effect after OmniSSHAgent is
 restarted. Pageant and Cygwin/MSYS2 enable settings can also be changed from the
-notification-area menu.
+notification-area menu or the Settings dialog.
 
 ## Client setup
 

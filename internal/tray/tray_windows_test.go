@@ -35,7 +35,7 @@ func TestRequiredMenu(t *testing.T) {
 		"Open configuration",
 		"Open configuration directory",
 		"Open log directory",
-		"Settings (restart required)",
+		"Settings",
 		"Enable Pageant interface",
 		"Enable Cygwin/MSYS2 interface",
 		"Start with Windows",
@@ -66,6 +66,7 @@ func TestCommandsAndShutdownRejection(t *testing.T) {
 	oldSetAutoStartEnabled := setAutoStartEnabled
 	oldLoadBooleanSettings := loadBooleanSettings
 	oldToggleBooleanSetting := toggleBooleanSetting
+	oldOpenSettings := openSettingsDialog
 	defer func() {
 		openPath = oldOpenPath
 		openConfiguration = oldOpenConfiguration
@@ -74,7 +75,9 @@ func TestCommandsAndShutdownRejection(t *testing.T) {
 		setAutoStartEnabled = oldSetAutoStartEnabled
 		loadBooleanSettings = oldLoadBooleanSettings
 		toggleBooleanSetting = oldToggleBooleanSetting
+		openSettingsDialog = oldOpenSettings
 	}()
+	openSettingsDialog = func(*Tray) {}
 	var opened []string
 	openPath = func(path string) error { opened = append(opened, path); return nil }
 	openConfiguration = func(path string) error { opened = append(opened, path); return nil }
@@ -111,6 +114,7 @@ func TestCommandsAndShutdownRejection(t *testing.T) {
 	tray.command(menuOpenConfig)
 	tray.command(menuOpenConfigDir)
 	tray.command(menuOpenLogDir)
+	tray.command(menuSettings)
 	tray.command(menuPageant)
 	tray.command(menuCygwin)
 	if booleanSettings.PageantEnabled || booleanSettings.CygwinEnabled {

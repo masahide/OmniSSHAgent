@@ -31,7 +31,8 @@ level = "info"
 - `backend.connect_timeout` must be a positive Go duration.
 - `interfaces.*.enabled` independently enables each compatibility interface.
 - The Pageant and Cygwin/MSYS2 Boolean settings can also be changed from the
-  notification-area menu and take effect after restarting OmniSSHAgent.
+  notification-area menu or the Settings dialog. Interface and backend changes
+  take effect after restarting OmniSSHAgent.
 - `tray.show_sign_notifications` is reserved for a future feature and has no
   effect in the current release.
 - An empty Cygwin path resolves to

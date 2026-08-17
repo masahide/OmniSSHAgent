@@ -7,7 +7,10 @@ message thread.
 
 The tray implementation uses a hidden normal top-level owner window, legacy
 notification callbacks, `SetForegroundWindow` before `TrackPopupMenu`, and
-menu selection through `WM_COMMAND`.
+menu selection through `WM_COMMAND`. Settings and Manage keys are modal Win32
+dialogs created on that same locked OS thread. They write `config.toml` and
+forward add/list/remove to `internal/backend`; they do not store private keys
+or passphrases.
 
 The tray and executable use the original OmniSSHAgent icon salvaged from the
 archived Wails build's `build/windows/icon.ico`. The exact ICO is embedded by
