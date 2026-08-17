@@ -13,7 +13,18 @@ $ErrorActionPreference = "Stop"
 $ProgressPreference = "SilentlyContinue"
 Set-StrictMode -Version Latest
 
-$assetName = "OmniSSHAgent-windows-amd64.exe"
+function Get-OmniSSHAgentReleaseArchitecture {
+    if ($env:PROCESSOR_ARCHITECTURE -eq "ARM64" -or $env:PROCESSOR_ARCHITEW6432 -eq "ARM64") {
+        return "arm64"
+    }
+    if ([Environment]::Is64BitOperatingSystem) {
+        return "amd64"
+    }
+    throw "OmniSSHAgent requires 64-bit Windows (x86-64 or ARM64)."
+}
+
+$releaseArchitecture = Get-OmniSSHAgentReleaseArchitecture
+$assetName = "OmniSSHAgent-windows-$releaseArchitecture.exe"
 $checksumName = "$assetName.sha256"
 $executableName = "OmniSSHAgent.exe"
 
@@ -130,9 +141,6 @@ function Receive-InstallerFile {
 
 if ($env:OS -ne "Windows_NT") {
     throw "OmniSSHAgent supports Windows only."
-}
-if (-not [Environment]::Is64BitOperatingSystem) {
-    throw "OmniSSHAgent requires 64-bit Windows."
 }
 if ([string]::IsNullOrWhiteSpace($env:LOCALAPPDATA) -and
     [string]::IsNullOrWhiteSpace($InstallDirectory)) {

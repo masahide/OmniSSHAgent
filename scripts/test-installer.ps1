@@ -19,7 +19,14 @@ try {
     $latestDirectory = Join-Path $releaseRoot "latest\download"
     New-Item -ItemType Directory -Path $latestDirectory | Out-Null
 
-    $assetName = "OmniSSHAgent-windows-amd64.exe"
+    if ($env:PROCESSOR_ARCHITECTURE -eq "ARM64" -or $env:PROCESSOR_ARCHITEW6432 -eq "ARM64") {
+        $releaseArchitecture = "arm64"
+    } elseif ([Environment]::Is64BitOperatingSystem) {
+        $releaseArchitecture = "amd64"
+    } else {
+        throw "OmniSSHAgent installer tests require 64-bit Windows."
+    }
+    $assetName = "OmniSSHAgent-windows-$releaseArchitecture.exe"
     $asset = Join-Path $latestDirectory $assetName
     Push-Location $repositoryRoot
     try {
@@ -127,13 +134,20 @@ try {
         Set-Content -LiteralPath (Join-Path $badLatestDirectory "$assetName.sha256") -Encoding Ascii
 
     $badInstallDirectory = Join-Path $testRoot "bad-installed"
-    & powershell.exe -NoProfile -NonInteractive -ExecutionPolicy Bypass `
-        -File $installer `
-        -InstallDirectory $badInstallDirectory `
-        -DownloadBaseUrl ([Uri]$badReleaseRoot).AbsoluteUri `
-        -NoLaunch `
-        -NoShortcut 2>$null
-    if ($LASTEXITCODE -eq 0) {
+    $previousErrorAction = $ErrorActionPreference
+    $ErrorActionPreference = "Continue"
+    try {
+        & powershell.exe -NoProfile -NonInteractive -ExecutionPolicy Bypass `
+            -File $installer `
+            -InstallDirectory $badInstallDirectory `
+            -DownloadBaseUrl ([Uri]$badReleaseRoot).AbsoluteUri `
+            -NoLaunch `
+            -NoShortcut 2>$null
+        $checksumExitCode = $LASTEXITCODE
+    } finally {
+        $ErrorActionPreference = $previousErrorAction
+    }
+    if ($checksumExitCode -eq 0) {
         throw "installer accepted a mismatched checksum"
     }
     if (Test-Path -LiteralPath (Join-Path $badInstallDirectory "OmniSSHAgent.exe")) {

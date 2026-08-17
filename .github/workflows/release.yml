@@ -35,9 +35,19 @@ jobs:
           $commit = "${{ github.sha }}"
           $buildTime = (Get-Date).ToUniversalTime().ToString("yyyy-MM-ddTHH:mm:ssZ")
           $ldflags = "-H=windowsgui -X github.com/masahide/OmniSSHAgent/internal/cli.Version=$version -X github.com/masahide/OmniSSHAgent/internal/cli.Commit=$commit -X github.com/masahide/OmniSSHAgent/internal/cli.BuildTime=$buildTime"
-          go build -trimpath -ldflags="$ldflags" -o OmniSSHAgent-windows-amd64.exe ./cmd/omnisshagent
-          $hash = (Get-FileHash OmniSSHAgent-windows-amd64.exe -Algorithm SHA256).Hash.ToLowerInvariant()
-          "$hash  OmniSSHAgent-windows-amd64.exe" | Set-Content -Encoding ascii OmniSSHAgent-windows-amd64.exe.sha256
+          foreach ($arch in @("amd64", "arm64")) {
+            $asset = "OmniSSHAgent-windows-$arch.exe"
+            $env:GOOS = "windows"
+            $env:GOARCH = $arch
+            go build -trimpath -ldflags="$ldflags" -o $asset ./cmd/omnisshagent
+            if ($LASTEXITCODE -ne 0) {
+              throw "release build failed for windows/$arch"
+            }
+            $hash = (Get-FileHash $asset -Algorithm SHA256).Hash.ToLowerInvariant()
+            "$hash  $asset" | Set-Content -Encoding ascii "$asset.sha256"
+          }
+          Remove-Item Env:GOOS -ErrorAction SilentlyContinue
+          Remove-Item Env:GOARCH -ErrorAction SilentlyContinue
       - name: Publish GitHub Release
         shell: pwsh
         env:
@@ -46,6 +56,8 @@ jobs:
           gh release create "${{ github.ref_name }}" `
             OmniSSHAgent-windows-amd64.exe `
             OmniSSHAgent-windows-amd64.exe.sha256 `
+            OmniSSHAgent-windows-arm64.exe `
+            OmniSSHAgent-windows-arm64.exe.sha256 `
             --repo "${{ github.repository }}" `
             --title "${{ github.ref_name }}" `
             --generate-notes
