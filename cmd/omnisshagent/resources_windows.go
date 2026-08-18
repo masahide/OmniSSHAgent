@@ -7,3 +7,4 @@ package main
 // need the resource compiler.
 //
 //go:generate go run github.com/akavel/rsrc@v0.10.2 -arch amd64 -ico ../../internal/tray/assets/tray.ico -o rsrc_windows_amd64.syso
+//go:generate go run github.com/akavel/rsrc@v0.10.2 -arch arm64 -ico ../../internal/tray/assets/tray.ico -o rsrc_windows_arm64.syso

@@ -57,11 +57,10 @@ For the background and rationale behind this redesign, see
 ## Requirements
 
 - Windows 11
-- x86-64
+- x86-64 or ARM64
 - Windows OpenSSH Authentication Agent
 
-Windows 10, Windows on ARM, macOS, Linux, and WSL1 are not supported by the
-current MVP.
+Windows 10, macOS, Linux, and WSL1 are not supported by the current MVP.
 
 ## Prepare the Windows OpenSSH agent
 
@@ -108,7 +107,7 @@ irm https://raw.githubusercontent.com/masahide/OmniSSHAgent/main/install.ps1 | i
 
 Administrator privileges are not required. The installer:
 
-- Downloads the latest Windows x86-64 release
+- Downloads the latest Windows x86-64 or ARM64 release for this machine
 - Verifies its SHA-256 checksum
 - Installs it under `%LOCALAPPDATA%\Programs\OmniSSHAgent`
 - Creates a Start menu shortcut

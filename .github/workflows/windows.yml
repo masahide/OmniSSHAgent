@@ -33,6 +33,12 @@ jobs:
         run: go build -trimpath -o OmniSSHAgent-console.exe ./cmd/omnisshagent
       - name: Build windowsgui
         run: go build -trimpath -ldflags="-H=windowsgui" -o OmniSSHAgent.exe ./cmd/omnisshagent
+      - name: Cross-compile Windows ARM64
+        shell: pwsh
+        run: |
+          $env:GOOS = "windows"
+          $env:GOARCH = "arm64"
+          go build -trimpath -ldflags="-H=windowsgui" -o OmniSSHAgent-windows-arm64.exe ./cmd/omnisshagent
       - name: Installer integration
         shell: pwsh
         run: ./scripts/test-installer.ps1
