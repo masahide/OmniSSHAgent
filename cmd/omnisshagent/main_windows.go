@@ -85,6 +85,7 @@ func run(args []string) int {
 		_ = logCloser.Close()
 		logger, logCloser = logging.New(runtimeConfig.LogDirectory, runtimeConfig.LogLevel)
 		backendClient := openssh.New(runtimeConfig.BackendPipePath, runtimeConfig.ConnectTimeout)
+		t.SetBackend(backendClient)
 		var components []interfaces.Component
 		if runtimeConfig.PageantEnabled {
 			components = append(components, pageant.New(backendClient, logger))
