@@ -13,8 +13,12 @@ import (
 )
 
 const (
-	ApplicationName = "OmniSSHAgent"
-	SchemaVersion   = 1
+	ApplicationName       = "OmniSSHAgent"
+	SchemaVersion         = 1
+	BackendWindowsOpenSSH = "windows-openssh"
+	BackendEmbedded       = "embedded"
+	DefaultBackendPipe    = "openssh-ssh-agent"
+	DefaultConnectTimeout = 5 * time.Second
 )
 
 type Config struct {
@@ -56,6 +60,7 @@ type LoggingConfig struct {
 type RuntimeConfig struct {
 	ConfigPath            string
 	LogDirectory          string
+	BackendType           string
 	BackendPipePath       string
 	ConnectTimeout        time.Duration
 	CygwinPath            string
@@ -69,9 +74,9 @@ func Default() Config {
 	return Config{
 		Version: SchemaVersion,
 		Backend: BackendConfig{
-			Type:           "windows-openssh",
-			Pipe:           "openssh-ssh-agent",
-			ConnectTimeout: "5s",
+			Type:           BackendWindowsOpenSSH,
+			Pipe:           DefaultBackendPipe,
+			ConnectTimeout: DefaultConnectTimeout.String(),
 		},
 		Interfaces: InterfaceConfig{
 			Pageant: PageantConfig{Enabled: true},
@@ -105,22 +110,33 @@ func Validate(cfg Config, configPath, logDirectory, userProfile string) (Runtime
 	if cfg.Version != SchemaVersion {
 		return RuntimeConfig{}, fmt.Errorf("unsupported version %d", cfg.Version)
 	}
-	if cfg.Backend.Type != "windows-openssh" {
-		return RuntimeConfig{}, fmt.Errorf("unsupported backend.type %q", cfg.Backend.Type)
-	}
-	pipe := strings.TrimSpace(cfg.Backend.Pipe)
-	if pipe == "" {
-		return RuntimeConfig{}, fmt.Errorf("backend.pipe must not be empty")
-	}
-	if !strings.HasPrefix(strings.ToLower(pipe), `\\.\pipe\`) {
-		if strings.ContainsAny(pipe, `\/`) {
-			return RuntimeConfig{}, fmt.Errorf("backend.pipe must be a pipe name or \\\\.\\pipe\\ path")
+	var pipe string
+	timeout := DefaultConnectTimeout
+	switch cfg.Backend.Type {
+	case BackendWindowsOpenSSH:
+		pipe = strings.TrimSpace(cfg.Backend.Pipe)
+		if pipe == "" {
+			return RuntimeConfig{}, fmt.Errorf("backend.pipe must not be empty")
 		}
-		pipe = `\\.\pipe\` + pipe
-	}
-	timeout, err := time.ParseDuration(cfg.Backend.ConnectTimeout)
-	if err != nil || timeout <= 0 {
-		return RuntimeConfig{}, fmt.Errorf("backend.connect_timeout must be a positive duration")
+		if !strings.HasPrefix(strings.ToLower(pipe), `\\.\pipe\`) {
+			if strings.ContainsAny(pipe, `\/`) {
+				return RuntimeConfig{}, fmt.Errorf("backend.pipe must be a pipe name or \\\\.\\pipe\\ path")
+			}
+			pipe = `\\.\pipe\` + pipe
+		}
+		parsed, err := time.ParseDuration(cfg.Backend.ConnectTimeout)
+		if err != nil || parsed <= 0 {
+			return RuntimeConfig{}, fmt.Errorf("backend.connect_timeout must be a positive duration")
+		}
+		timeout = parsed
+	case BackendEmbedded:
+		// The embedded backend always exposes the standard OpenSSH pipe and
+		// does not make outbound backend connections. These legacy fields are
+		// intentionally ignored so users can switch modes without erasing them.
+	case "":
+		fallthrough
+	default:
+		return RuntimeConfig{}, fmt.Errorf("unsupported backend.type %q", cfg.Backend.Type)
 	}
 	cygwinPath := cfg.Interfaces.Cygwin.SocketPath
 	if cygwinPath == "" {
@@ -147,6 +163,7 @@ func Validate(cfg Config, configPath, logDirectory, userProfile string) (Runtime
 	return RuntimeConfig{
 		ConfigPath:            configPath,
 		LogDirectory:          logDirectory,
+		BackendType:           cfg.Backend.Type,
 		BackendPipePath:       pipe,
 		ConnectTimeout:        timeout,
 		CygwinPath:            filepath.Clean(cygwinPath),

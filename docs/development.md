@@ -1,16 +1,18 @@
 # Development
 
 OmniSSHAgent is a Windows-only Go 1.25.6 module. `internal/backend` defines the
-SSH Agent contract; `internal/interfaces` contains Pageant and Cygwin adapters;
-`internal/app` owns state and lifecycle; and `internal/tray` owns its Win32
-message thread.
+SSH Agent contract and contains the external OpenSSH client and embedded
+ephemeral keyring; `internal/interfaces` contains OpenSSH Named Pipe, Pageant,
+and Cygwin adapters; `internal/app` owns state and lifecycle; and
+`internal/tray` owns its Win32 message thread.
 
 The tray implementation uses a hidden normal top-level owner window, legacy
 notification callbacks, `SetForegroundWindow` before `TrackPopupMenu`, and
 menu selection through `WM_COMMAND`. Settings and Manage keys are modal Win32
 dialogs created on that same locked OS thread. They write `config.toml` and
-forward add/list/remove to `internal/backend`; they do not store private keys
-or passphrases.
+forward add/list/remove to `internal/backend`; they do not persist private-key
+paths, private keys, or passphrases. The embedded backend retains loaded keys
+only in process memory.
 
 The tray and executable use the original OmniSSHAgent icon salvaged from the
 archived Wails build's `build/windows/icon.ico`. The exact ICO is embedded by

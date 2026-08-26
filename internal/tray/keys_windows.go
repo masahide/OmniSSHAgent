@@ -80,7 +80,7 @@ func clearBytes(b []byte) {
 
 func addKeyFromFile(b backend.Backend, path string, askPass func() ([]byte, bool)) error {
 	if b == nil {
-		return errors.New("the OpenSSH agent backend is unavailable")
+		return errors.New("the SSH agent backend is unavailable")
 	}
 	if strings.EqualFold(filepath.Ext(path), ".ppk") {
 		return errors.New("PuTTY .ppk keys are not supported")
@@ -114,7 +114,7 @@ func (t *Tray) openKeys(owner uintptr) {
 	}
 	b := t.backend()
 	if b == nil {
-		showError(owner, "Manage keys", errors.New("the OpenSSH agent backend is unavailable until the configuration is valid"))
+		showError(owner, "Manage keys", errors.New("the SSH agent backend is unavailable until the configuration is valid"))
 		return
 	}
 	d := &keysDialog{tray: t, owner: owner, m: newMetrics(), backend: b}
