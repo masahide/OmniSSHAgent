@@ -3,8 +3,9 @@
 > [!IMPORTANT]
 > **Upgrading from an earlier version of OmniSSHAgent?**
 >
-> OmniSSHAgent has been redesigned around the Windows OpenSSH agent. Its role,
-> configuration, and WSL integration have changed. Before upgrading, read
+> OmniSSHAgent has been redesigned around a separation between SSH agent
+> backends and Windows client interfaces. Its role, configuration, and WSL
+> integration have changed. Before upgrading, read
 > [Why OmniSSHAgent Is Being Redesigned](docs/why-omnisshagent-is-being-redesigned.md)
 > and follow the [legacy migration guide](docs/migration-from-legacy.md).
 
@@ -15,16 +16,18 @@ OpenSSH clients use a Windows Named Pipe, PuTTY-family applications use the
 Pageant protocol, and Git for Windows, MSYS2, and Cygwin use a Cygwin-compatible
 socket format.
 
-OmniSSHAgent connects these Windows client interfaces to the Windows OpenSSH
-Authentication Agent. It runs as a Windows 11 notification-area application and
-does not store private keys or passphrases itself.
+OmniSSHAgent connects these Windows client interfaces to a selected SSH agent
+backend. Windows OpenSSH remains the default backend. An optional embedded
+backend can instead keep keys only in OmniSSHAgent process memory. OmniSSHAgent
+runs as a Windows 11 notification-area application and never persists private
+keys or decryption passphrases.
 
 ## Architecture
 
-![OmniSSHAgent connection architecture](docs/images/omnisshagent-connection-diagram.svg)
+![Default OmniSSHAgent connection architecture](docs/images/omnisshagent-connection-diagram.svg)
 
-The Windows OpenSSH Authentication Agent remains responsible for private key
-storage and signing operations.
+With the default `windows-openssh` backend, the Windows OpenSSH Authentication
+Agent remains responsible for private key storage and signing operations.
 
 OmniSSHAgent opens `\\.\pipe\openssh-ssh-agent` for each request and exposes two
 optional compatibility interfaces:
@@ -32,10 +35,16 @@ optional compatibility interfaces:
 - Pageant for PuTTY, WinSCP, TortoiseGit, and other Pageant-compatible clients
 - Cygwin/MSYS2 for Git for Windows, MSYS2, and Cygwin clients
 
-WSL2 does not connect through OmniSSHAgent. WSL integration is provided
+With `backend.type = "embedded"`, OmniSSHAgent owns the standard OpenSSH Named
+Pipe and connects OpenSSH, Pageant, and Cygwin/MSYS2 clients to one ephemeral
+in-memory keyring. Keys are lost when OmniSSHAgent exits and are not reloaded
+automatically.
+
+OmniSSHAgent does not manage WSL2 transport. WSL integration is provided
 separately by [Pipeferry](https://github.com/masahide/pipeferry/blob/main/docs/openssh-agent.md),
 which connects a Unix Domain Socket in WSL2 to the same Windows OpenSSH Named
-Pipe.
+Pipe. The pipe may be owned by an external backend or by OmniSSHAgent in
+embedded mode.
 
 ## Design goals
 
@@ -43,11 +52,12 @@ OmniSSHAgent is intentionally focused on compatibility rather than key
 management.
 
 - Use the Windows OpenSSH Authentication Agent as the default backend
-- Avoid replacing or disabling the Windows standard SSH agent
+- Avoid replacing or disabling the Windows standard SSH agent by default
 - Make existing Pageant and Cygwin/MSYS2 clients use the same backend keys
 - Keep Pageant and Cygwin/MSYS2 failures isolated from each other
 - Recover automatically after the backend agent is restarted
-- Avoid storing private keys, passphrases, or SSH agent payloads
+- Never persist private keys or decryption passphrases
+- Never log SSH agent payloads or signing data
 - Keep WSL2 transport independent through Pipeferry
 - Remain a small Windows-native notification-area application
 
@@ -58,11 +68,11 @@ For the background and rationale behind this redesign, see
 
 - Windows 11
 - x86-64 or ARM64
-- Windows OpenSSH Authentication Agent
+- Windows OpenSSH Authentication Agent when using the default backend
 
 Windows 10, macOS, Linux, and WSL1 are not supported by the current MVP.
 
-## Prepare the Windows OpenSSH agent
+## Default backend: prepare the Windows OpenSSH agent
 
 Start the Windows OpenSSH Authentication Agent and add your keys before using
 OmniSSHAgent.
@@ -85,6 +95,34 @@ ssh-add -l
 OmniSSHAgent connects to `\\.\pipe\openssh-ssh-agent` for each individual
 request. If the OpenSSH agent is stopped and later restarted, OmniSSHAgent can
 recover without being restarted.
+
+## Optional embedded backend
+
+Use the embedded backend when keys should exist only for the lifetime of the
+OmniSSHAgent process. Set the backend type in Settings or in `config.toml`:
+
+```toml
+[backend]
+type = "embedded"
+```
+
+Embedded mode exposes `\\.\pipe\openssh-ssh-agent`. If the Windows OpenSSH
+Authentication Agent or another agent already owns that pipe, the OpenSSH
+interface fails and OmniSSHAgent reports **Degraded**; Pageant and Cygwin/MSYS2
+can continue running. OmniSSHAgent never stops or disables the Windows service
+automatically.
+
+To release the standard pipe, open PowerShell as Administrator and explicitly
+stop the Windows service before starting OmniSSHAgent in embedded mode:
+
+```powershell
+Stop-Service ssh-agent
+```
+
+Keys can then be added through `ssh-add`,
+[KeePassXC's SSH Agent integration](https://keepassxc.org/docs/KeePassXC_UserGuide),
+or **Manage keys**. Lifetime constraints are supported. Confirm-before-use is
+rejected because this release has no confirmation UI.
 
 ## Install
 
@@ -138,9 +176,11 @@ The notification-area menu provides:
 - Quit
 
 **Settings** opens a native dialog for the same options as `config.toml`, plus
-**Manage keys** to add or remove keys in the Windows OpenSSH agent. Interface
-and backend changes apply after OmniSSHAgent is restarted. Adding a key asks
-for the passphrase if the file is encrypted; the passphrase is not stored.
+**Manage keys** to add or remove keys in the selected SSH agent backend.
+Interface and backend changes apply after OmniSSHAgent is restarted. Adding a
+key asks for the passphrase if the file is encrypted; neither the passphrase nor
+the private-key path is stored. In embedded mode, the loaded key is retained
+only in process memory.
 
 The **Start with Windows** setting registers OmniSSHAgent for the current user
 and does not require administrator privileges.
@@ -161,8 +201,8 @@ Supported examples include:
 - WinSCP
 - TortoiseGit
 
-These applications can use keys loaded in the Windows OpenSSH Authentication
-Agent through OmniSSHAgent's Pageant compatibility interface.
+These applications can use keys loaded in the selected backend through
+OmniSSHAgent's Pageant compatibility interface.
 
 Only one application can own the Pageant window class. Stop another Pageant
 implementation if it conflicts with OmniSSHAgent.
@@ -239,6 +279,10 @@ level = "info"
 Unknown fields and unsupported configuration versions are rejected instead of
 being silently ignored.
 
+For embedded mode, only `type` needs to change. Existing `pipe` and
+`connect_timeout` values may remain in the file; they are ignored while the
+embedded backend is selected.
+
 See [configuration](docs/configuration.md) for all available settings.
 
 ## Diagnostics
@@ -274,7 +318,8 @@ successfully.
 
 The configuration is valid, but one compatibility interface could not start.
 For example, another Pageant implementation may already own the Pageant window
-class while the Cygwin/MSYS2 interface remains usable.
+class, or another agent may own the standard OpenSSH Named Pipe in embedded
+mode, while unrelated interfaces remain usable.
 
 ### Configuration error
 
@@ -284,11 +329,15 @@ can be opened.
 
 ## Security model
 
-OmniSSHAgent is a protocol bridge and does not act as an independent key store.
+OmniSSHAgent does not provide a persistent key store.
 
-- Private keys remain in the configured OpenSSH-compatible backend
-- Passphrases are not stored by OmniSSHAgent
+- With an external backend, keys and signing remain in that backend
+- With the embedded backend, loaded keys exist only in OmniSSHAgent process
+  memory and are discarded on exit
+- Private-key paths and decryption passphrases are not persisted
 - SSH agent request and signing payloads are not written to logs
+- The embedded OpenSSH Named Pipe grants access only to SYSTEM and the current
+  Windows user
 - The Cygwin-compatible TCP listener binds only to `127.0.0.1`
 - Cygwin connections require the socket descriptor nonce handshake
 - Pageant shared-memory sizes and SSH agent message lengths are validated
@@ -341,8 +390,10 @@ Earlier OmniSSHAgent versions could load private key files directly, store
 passphrases in Windows Credential Manager, replace the Windows OpenSSH Named
 Pipe, and provide WSL proxy functionality.
 
-The redesigned version instead uses the Windows OpenSSH Authentication Agent as
-the backend and delegates WSL2 integration to Pipeferry.
+The redesigned version separates selectable backends from Windows client
+interfaces and delegates WSL2 integration to Pipeferry. The optional embedded
+backend is ephemeral and does not restore legacy settings, passphrase storage,
+or automatic key reload.
 
 Before upgrading, read:
 
@@ -351,15 +402,16 @@ Before upgrading, read:
 
 ## Known limitations
 
-The current MVP does not provide:
+The current application does not provide:
 
-- A key-management GUI
-- Direct private key file loading
+- Persistent private-key or passphrase storage
+- Automatic key reload after restarting the embedded backend
+- Confirm-before-use handling in the embedded backend
 - Configuration hot reload
 - Automatic updates inside the application
 - Authenticode signing
 - Log retention or size-based cleanup
-- Windows 10 or ARM64 support
+- Windows 10 support
 
 ## Related documentation
 

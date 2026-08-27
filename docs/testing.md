@@ -10,6 +10,9 @@ go mod tidy
 ./scripts/test-installer.ps1
 go build -trimpath -o OmniSSHAgent-console.exe ./cmd/omnisshagent
 go build -trimpath -ldflags="-H=windowsgui" -o OmniSSHAgent.exe ./cmd/omnisshagent
+$env:GOOS = 'windows'
+$env:GOARCH = 'arm64'
+go build -trimpath -ldflags="-H=windowsgui" -o OmniSSHAgent-windows-arm64.exe ./cmd/omnisshagent
 ```
 
 ## Windows E2E
@@ -42,12 +45,54 @@ $env:OMNISSHAGENT_CYGWIN_SOCKET = 'C:\path\to\omnisshagent-cygwin.sock'
 go test -tags=e2e -v ./internal/e2e
 ```
 
+## Embedded backend E2E
+
+Run these Windows commands from Windows PowerShell or PowerShell 7, not Command
+Prompt or Git Bash. Confirm the shell first:
+
+```powershell
+(Get-Process -Id $PID).ProcessName
+$PSVersionTable.PSVersion
+```
+
+Select `backend.type = "embedded"`, then open PowerShell as Administrator and
+release the standard pipe explicitly:
+
+```powershell
+Stop-Service ssh-agent
+```
+
+OmniSSHAgent does not stop or disable that service itself. After restarting
+OmniSSHAgent, verify:
+
+```powershell
+ssh-add -l
+ssh-add C:\path\to\disposable-test-key
+ssh-add -l
+ssh example-test-host
+```
+
+Also verify all applicable behaviors:
+
+1. KeePassXC database unlock adds its configured key and database lock removes
+   it.
+2. PuTTY or WinSCP can use the same key through Pageant.
+3. Git for Windows/MSYS2/Cygwin can use the same key through the Cygwin socket.
+4. Quitting and restarting OmniSSHAgent leaves the embedded key list empty.
+5. Start another agent that owns `\\.\pipe\openssh-ssh-agent` first, then start
+   OmniSSHAgent and confirm its OpenSSH component is **Degraded** without
+   stopping Pageant or Cygwin/MSYS2.
+
+Record these as manual E2E results; automated Go tests do not prove KeePassXC,
+GUI, real client authentication, or Windows sign-in behavior.
+
 ## Troubleshooting
 
 Logs are in `%LOCALAPPDATA%\OmniSSHAgent\logs`. A configuration error prevents
 both interfaces from starting. A Pageant class conflict affects only Pageant.
-Backend connection errors usually mean the Windows OpenSSH Authentication Agent
-is stopped or the configured pipe is unavailable.
+External backend connection errors usually mean the configured agent is stopped
+or its pipe is unavailable. In embedded mode, an OpenSSH component startup
+error usually means another agent already owns the standard pipe.
 
 ## Live test record: 2026-07-20
 

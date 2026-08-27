@@ -23,6 +23,7 @@ func TestMergeSettingsValidatesAndPreservesReservedFields(t *testing.T) {
 		PageantEnabled: false,
 		CygwinEnabled:  true,
 		SocketPath:     "",
+		BackendType:    config.BackendWindowsOpenSSH,
 		Pipe:           "openssh-ssh-agent",
 		ConnectTimeout: "3s",
 		LogLevel:       "DEBUG",
@@ -39,7 +40,7 @@ func TestMergeSettingsValidatesAndPreservesReservedFields(t *testing.T) {
 	if !cfg.Tray.ShowSignNotifications {
 		t.Fatal("reserved tray field was lost")
 	}
-	if cfg.Backend.Type != "windows-openssh" {
+	if cfg.Backend.Type != config.BackendWindowsOpenSSH {
 		t.Fatalf("type=%q", cfg.Backend.Type)
 	}
 	if err := validateSettings(cfg, `C:\cfg.toml`, `C:\Users\tester`); err != nil {
@@ -52,12 +53,30 @@ func TestMergeSettingsRejectsInvalidValues(t *testing.T) {
 		PageantEnabled: true,
 		CygwinEnabled:  true,
 		SocketPath:     "relative.sock",
+		BackendType:    config.BackendWindowsOpenSSH,
 		Pipe:           "openssh-ssh-agent",
 		ConnectTimeout: "5s",
 		LogLevel:       "info",
 	})
 	if err := validateSettings(cfg, `C:\cfg.toml`, `C:\Users\tester`); err == nil {
 		t.Fatal("expected relative socket path to fail")
+	}
+}
+
+func TestMergeSettingsSelectsEmbeddedBackend(t *testing.T) {
+	cfg := mergeSettings(config.Default(), settingsValues{
+		PageantEnabled: true,
+		CygwinEnabled:  true,
+		BackendType:    config.BackendEmbedded,
+		Pipe:           "",
+		ConnectTimeout: "ignored",
+		LogLevel:       "info",
+	})
+	if cfg.Backend.Type != config.BackendEmbedded {
+		t.Fatalf("type=%q", cfg.Backend.Type)
+	}
+	if err := validateSettings(cfg, `C:\cfg.toml`, `C:\Users\tester`); err != nil {
+		t.Fatal(err)
 	}
 }
 

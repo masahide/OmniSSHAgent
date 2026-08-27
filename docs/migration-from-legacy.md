@@ -3,11 +3,12 @@
 This guide is for users moving from OmniSSHAgent 0.6.x or earlier to the
 redesigned 0.7.0 and later releases.
 
-The redesigned OmniSSHAgent is not a key store. It uses an existing
-OpenSSH-compatible agent, such as the Windows OpenSSH Authentication Agent or
-1Password SSH Agent, and exposes Pageant and Cygwin/MSYS2 compatibility
-interfaces. Legacy settings and stored passphrases are not imported
-automatically.
+The redesigned OmniSSHAgent is not a persistent key store. It can use an
+existing OpenSSH-compatible agent, such as the Windows OpenSSH Authentication
+Agent or 1Password SSH Agent, or an optional embedded keyring that lasts only
+for the OmniSSHAgent process. It exposes the same OpenSSH, Pageant, and
+Cygwin/MSYS2 interfaces without importing legacy settings or stored
+passphrases.
 
 Read [Why OmniSSHAgent Is Being Redesigned](why-omnisshagent-is-being-redesigned.md)
 before migrating.
@@ -48,7 +49,7 @@ verification steps in this guide.
 The migration has four parts:
 
 1. Inventory the legacy installation.
-2. Move keys to an OpenSSH-compatible backend.
+2. Select a backend and decide how keys will be loaded.
 3. Install and configure the redesigned OmniSSHAgent.
 4. Update clients and remove legacy components after verification.
 
@@ -96,15 +97,15 @@ legacy `settings.json` before continuing.
 
 | Legacy setting or feature | Redesigned equivalent |
 | --- | --- |
-| Built-in in-memory keyring | Windows OpenSSH, 1Password, or another OpenSSH-compatible agent |
+| Built-in key-management architecture | Removed; use an external backend or the optional embedded ephemeral keyring |
 | Saved private-key paths | Add the original key files to the selected backend |
 | Saved passphrases | Not migrated; enter them again in the selected backend |
 | `PageantAgent` | `interfaces.pageant.enabled` |
 | `CygWinAgent` | `interfaces.cygwin.enabled` |
 | `CygWinSocketPath` | `interfaces.cygwin.socket_path` |
 | `DebugLog` | `logging.level = "debug"` when enabled |
-| Named Pipe server | Removed; the Named Pipe is now the backend |
-| `ProxyModeOfNamedPipe` | The redesigned architecture always uses an OpenSSH-compatible backend |
+| Named Pipe server | Available only with `backend.type = "embedded"`; it always uses the standard pipe |
+| `ProxyModeOfNamedPipe` | Replaced by explicit `windows-openssh` and `embedded` backend types |
 | WSL1 Unix socket | Not supported |
 | `wsl2-ssh-agent-proxy` and `omni-socat` | Use Pipeferry for WSL2 |
 | Legacy Startup-folder shortcut | Use **Start with Windows** in the tray menu |
@@ -221,6 +222,36 @@ Add or import the required keys using 1Password. Do not also start the Windows
 OpenSSH Authentication Agent when both applications are configured to own the
 same Named Pipe.
 
+### Option C: Embedded ephemeral backend
+
+Choose this option when keys should be available only while OmniSSHAgent is
+running, including workflows where KeePassXC adds keys on database unlock and
+removes them on lock.
+
+Set the backend type through Settings or in `config.toml`:
+
+```toml
+[backend]
+type = "embedded"
+```
+
+The embedded backend does not import legacy key paths, Credential Manager
+entries, or passphrases. It does not restore keys after OmniSSHAgent restarts.
+Add keys again through `ssh-add`, KeePassXC, or **Manage keys** after each new
+process start as required.
+
+Embedded mode must own `\\.\pipe\openssh-ssh-agent`. OmniSSHAgent never stops
+or disables the Windows OpenSSH Authentication Agent automatically. From an
+elevated PowerShell window, explicitly release the pipe before starting
+embedded mode:
+
+```powershell
+Stop-Service ssh-agent
+```
+
+If another agent still owns the pipe, OmniSSHAgent reports **Degraded**. Its
+Pageant and Cygwin/MSYS2 interfaces remain independent.
+
 ## 6. Install the Redesigned OmniSSHAgent
 
 Run:
@@ -333,13 +364,15 @@ WSL1 integration has no replacement in the redesigned OmniSSHAgent.
 
 Perform all applicable checks before cleanup:
 
-1. `Get-Service ssh-agent` reports `Running`, or the selected alternative
-   backend is running.
+1. In external mode, `Get-Service ssh-agent` reports `Running`, or the selected
+   alternative backend is running. In embedded mode, OmniSSHAgent owns the
+   standard OpenSSH Named Pipe.
 2. `ssh-add -l` lists the expected keys.
 3. PuTTY or WinSCP authenticates through the Pageant interface.
 4. Git Bash, MSYS2, or Cygwin runs `ssh-add -l` through the new socket.
 5. WSL2 authenticates through Pipeferry, if used.
-6. Restart OmniSSHAgent and repeat the tests.
+6. Restart OmniSSHAgent and repeat the tests. An embedded backend must start
+   empty; re-add its test keys before authentication.
 7. Sign out and in, then confirm **Start with Windows**, if enabled.
 
 Logs for the redesigned application are in:

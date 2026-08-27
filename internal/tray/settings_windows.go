@@ -30,14 +30,30 @@ const (
 	idRestartNote  = 2116
 	idManageKeys   = 2117
 	idApply        = 2118
+	idBackendType  = 2119
+	idBackendNote  = 2120
 )
 
 var logLevels = []string{"debug", "info", "warn", "error"}
+
+type backendOption struct {
+	value string
+	label string
+}
+
+var backendOptions = []backendOption{
+	{value: config.BackendWindowsOpenSSH, label: "Windows OpenSSH"},
+	{value: config.BackendEmbedded, label: "Embedded ephemeral agent"},
+}
+
+const embeddedBackendNote = "Keys are held only in memory and are lost when OmniSSHAgent exits.\r\n" +
+	`Embedded mode exposes \\.\pipe\openssh-ssh-agent; another agent must not own this pipe.`
 
 type settingsValues struct {
 	PageantEnabled bool
 	CygwinEnabled  bool
 	SocketPath     string
+	BackendType    string
 	Pipe           string
 	ConnectTimeout string
 	LogLevel       string
@@ -45,22 +61,27 @@ type settingsValues struct {
 }
 
 type settingsDialog struct {
-	tray      *Tray
-	m         metrics
-	hwnd      uintptr
-	pageant   uintptr
-	cygwin    uintptr
-	socket    uintptr
-	pipe      uintptr
-	timeout   uintptr
-	autoStart uintptr
-	logLevel  uintptr
+	tray         *Tray
+	m            metrics
+	hwnd         uintptr
+	pageant      uintptr
+	cygwin       uintptr
+	socket       uintptr
+	backendType  uintptr
+	pipeLabel    uintptr
+	pipe         uintptr
+	timeoutLabel uintptr
+	timeout      uintptr
+	backendNote  uintptr
+	autoStart    uintptr
+	logLevel     uintptr
 }
 
 func mergeSettings(cfg config.Config, v settingsValues) config.Config {
 	cfg.Interfaces.Pageant.Enabled = v.PageantEnabled
 	cfg.Interfaces.Cygwin.Enabled = v.CygwinEnabled
 	cfg.Interfaces.Cygwin.SocketPath = strings.TrimSpace(v.SocketPath)
+	cfg.Backend.Type = strings.TrimSpace(v.BackendType)
 	cfg.Backend.Pipe = strings.TrimSpace(v.Pipe)
 	cfg.Backend.ConnectTimeout = strings.TrimSpace(v.ConnectTimeout)
 	cfg.Logging.Level = strings.ToLower(strings.TrimSpace(v.LogLevel))
@@ -100,7 +121,7 @@ var settingsDlg *settingsDialog
 func (d *settingsDialog) create(owner uintptr) error {
 	m := d.m
 	width := m.s(492)
-	height := m.s(458)
+	height := m.s(546)
 	hwnd, err := createPopup(settingsClass, "OmniSSHAgent Settings", width, height, owner, settingsCallback)
 	if err != nil {
 		return err
@@ -155,20 +176,32 @@ func (d *settingsDialog) createControls() error {
 	}
 
 	backendTop := compatTop + compatH + m.s(10)
-	backendH := m.s(86)
+	backendH := m.s(174)
 	if _, err = d.child("Button", "Backend", bsGroupBox, 0, pad, backendTop, m.s(468), backendH, idGroupBackend); err != nil {
 		return err
 	}
-	if _, err = d.child("Static", "Named pipe:", 0, 0, innerX, backendTop+m.s(24), labelW, editH, idPipeLabel); err != nil {
+	if _, err = d.child("Static", "Type:", 0, 0, innerX, backendTop+m.s(24), labelW, editH, 0); err != nil {
 		return err
 	}
-	if d.pipe, err = d.child("Edit", "", esAutoHScroll|wsTabStop, wsExClientEdge, editX, backendTop+m.s(20), innerW-labelW, editH, idPipe); err != nil {
+	if d.backendType, err = d.child("ComboBox", "", cbsDropDownList|wsVScroll|wsTabStop, 0, editX, backendTop+m.s(20), m.s(220), m.s(100), idBackendType); err != nil {
 		return err
 	}
-	if _, err = d.child("Static", "Timeout:", 0, 0, innerX, backendTop+m.s(52), labelW, editH, idTimeoutLabel); err != nil {
+	for _, option := range backendOptions {
+		comboAdd(d.backendType, option.label)
+	}
+	if d.pipeLabel, err = d.child("Static", "Named pipe:", 0, 0, innerX, backendTop+m.s(52), labelW, editH, idPipeLabel); err != nil {
 		return err
 	}
-	if d.timeout, err = d.child("Edit", "", esAutoHScroll|wsTabStop, wsExClientEdge, editX, backendTop+m.s(48), m.s(80), editH, idTimeout); err != nil {
+	if d.pipe, err = d.child("Edit", "", esAutoHScroll|wsTabStop, wsExClientEdge, editX, backendTop+m.s(48), innerW-labelW, editH, idPipe); err != nil {
+		return err
+	}
+	if d.timeoutLabel, err = d.child("Static", "Timeout:", 0, 0, innerX, backendTop+m.s(80), labelW, editH, idTimeoutLabel); err != nil {
+		return err
+	}
+	if d.timeout, err = d.child("Edit", "", esAutoHScroll|wsTabStop, wsExClientEdge, editX, backendTop+m.s(76), m.s(80), editH, idTimeout); err != nil {
+		return err
+	}
+	if d.backendNote, err = d.child("Static", "", 0, 0, innerX, backendTop+m.s(108), innerW, m.s(54), idBackendNote); err != nil {
 		return err
 	}
 
@@ -232,8 +265,17 @@ func (d *settingsDialog) load() error {
 		}
 	}
 	setWindowText(d.socket, socket)
+	backendSelected := 0
+	for i, option := range backendOptions {
+		if option.value == cfg.Backend.Type {
+			backendSelected = i
+			break
+		}
+	}
+	comboSelect(d.backendType, backendSelected)
 	setWindowText(d.pipe, cfg.Backend.Pipe)
 	setWindowText(d.timeout, cfg.Backend.ConnectTimeout)
+	d.updateBackendControls()
 	level := strings.ToLower(cfg.Logging.Level)
 	selected := 1
 	for i, name := range logLevels {
@@ -252,6 +294,10 @@ func (d *settingsDialog) load() error {
 }
 
 func (d *settingsDialog) values() settingsValues {
+	backendType := config.BackendWindowsOpenSSH
+	if i := comboIndex(d.backendType); i >= 0 && i < len(backendOptions) {
+		backendType = backendOptions[i].value
+	}
 	level := "info"
 	if i := comboIndex(d.logLevel); i >= 0 && i < len(logLevels) {
 		level = logLevels[i]
@@ -260,11 +306,31 @@ func (d *settingsDialog) values() settingsValues {
 		PageantEnabled: isChecked(d.pageant),
 		CygwinEnabled:  isChecked(d.cygwin),
 		SocketPath:     windowText(d.socket),
+		BackendType:    backendType,
 		Pipe:           windowText(d.pipe),
 		ConnectTimeout: windowText(d.timeout),
 		LogLevel:       level,
 		AutoStart:      isChecked(d.autoStart),
 	}
+}
+
+func (d *settingsDialog) updateBackendControls() {
+	embedded := false
+	if i := comboIndex(d.backendType); i >= 0 && i < len(backendOptions) {
+		embedded = backendOptions[i].value == config.BackendEmbedded
+	}
+	enabled := uintptr(1)
+	if embedded {
+		enabled = 0
+	}
+	for _, control := range []uintptr{d.pipeLabel, d.pipe, d.timeoutLabel, d.timeout} {
+		enableWindow.Call(control, enabled)
+	}
+	note := ""
+	if embedded {
+		note = embeddedBackendNote
+	}
+	setWindowText(d.backendNote, note)
 }
 
 func (d *settingsDialog) apply() bool {
@@ -345,6 +411,9 @@ func settingsWindowProc(window uintptr, msg uint32, wParam, lParam uintptr) uint
 			return 0
 		case idBrowse:
 			d.browseSocket()
+			return 0
+		case idBackendType:
+			d.updateBackendControls()
 			return 0
 		case idManageKeys:
 			d.tray.openKeys(d.hwnd)

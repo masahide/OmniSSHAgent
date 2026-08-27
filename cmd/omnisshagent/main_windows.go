@@ -12,12 +12,15 @@ import (
 	"time"
 
 	"github.com/masahide/OmniSSHAgent/internal/app"
+	"github.com/masahide/OmniSSHAgent/internal/backend"
+	"github.com/masahide/OmniSSHAgent/internal/backend/embedded"
 	"github.com/masahide/OmniSSHAgent/internal/backend/openssh"
 	"github.com/masahide/OmniSSHAgent/internal/cli"
 	"github.com/masahide/OmniSSHAgent/internal/config"
 	"github.com/masahide/OmniSSHAgent/internal/control"
 	"github.com/masahide/OmniSSHAgent/internal/interfaces"
 	"github.com/masahide/OmniSSHAgent/internal/interfaces/cygwin"
+	"github.com/masahide/OmniSSHAgent/internal/interfaces/opensshpipe"
 	"github.com/masahide/OmniSSHAgent/internal/interfaces/pageant"
 	"github.com/masahide/OmniSSHAgent/internal/logging"
 	"github.com/masahide/OmniSSHAgent/internal/singleton"
@@ -84,17 +87,15 @@ func run(args []string) int {
 	} else {
 		_ = logCloser.Close()
 		logger, logCloser = logging.New(runtimeConfig.LogDirectory, runtimeConfig.LogLevel)
-		backendClient := openssh.New(runtimeConfig.BackendPipePath, runtimeConfig.ConnectTimeout)
-		t.SetBackend(backendClient)
-		var components []interfaces.Component
-		if runtimeConfig.PageantEnabled {
-			components = append(components, pageant.New(backendClient, logger))
+		backendClient, backendErr := newBackend(runtimeConfig)
+		if backendErr != nil {
+			logger.Error("backend initialization error", "error", backendErr)
+			t.SetState(app.StateDegraded)
+		} else {
+			t.SetBackend(backendClient)
+			application = app.New(newComponents(runtimeConfig, backendClient, logger), t, logger)
+			application.Run(ctx)
 		}
-		if runtimeConfig.CygwinEnabled {
-			components = append(components, cygwin.New(backendClient, runtimeConfig.CygwinPath, runtimeConfig.ConnectTimeout, logger))
-		}
-		application = app.New(components, t, logger)
-		application.Run(ctx)
 	}
 
 	select {
@@ -120,4 +121,29 @@ func run(args []string) int {
 	}
 	logger.Info("application stopped", "executable", filepath.Base(os.Args[0]))
 	return cli.ExitOK
+}
+
+func newBackend(runtimeConfig config.RuntimeConfig) (backend.Backend, error) {
+	switch runtimeConfig.BackendType {
+	case config.BackendWindowsOpenSSH:
+		return openssh.New(runtimeConfig.BackendPipePath, runtimeConfig.ConnectTimeout), nil
+	case config.BackendEmbedded:
+		return embedded.New()
+	default:
+		return nil, fmt.Errorf("unsupported runtime backend type %q", runtimeConfig.BackendType)
+	}
+}
+
+func newComponents(runtimeConfig config.RuntimeConfig, backendClient backend.Backend, logger *slog.Logger) []interfaces.Component {
+	var components []interfaces.Component
+	if runtimeConfig.BackendType == config.BackendEmbedded {
+		components = append(components, opensshpipe.New(backendClient, logger))
+	}
+	if runtimeConfig.PageantEnabled {
+		components = append(components, pageant.New(backendClient, logger))
+	}
+	if runtimeConfig.CygwinEnabled {
+		components = append(components, cygwin.New(backendClient, runtimeConfig.CygwinPath, runtimeConfig.ConnectTimeout, logger))
+	}
+	return components
 }

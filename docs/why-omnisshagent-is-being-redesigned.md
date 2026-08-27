@@ -4,9 +4,11 @@ OmniSSHAgent was created to unify the fragmented SSH agent environment on Window
 
 That goal is not changing.
 
-What has changed is the Windows SSH ecosystem itself. Windows OpenSSH has become a standard part of modern Windows installations, and several applications now provide OpenSSH-compatible SSH agent implementations. After reviewing the current environment and the responsibilities accumulated in OmniSSHAgent, the project is being redesigned around a smaller and clearer role.
+What has changed is the Windows SSH ecosystem itself. Windows OpenSSH has become a standard part of modern Windows installations, and several applications now provide OpenSSH-compatible SSH agent implementations. After reviewing the current environment and the responsibilities accumulated in OmniSSHAgent, the project was redesigned around a smaller and clearer separation between SSH agent backends and the Windows interfaces used to access them.
 
-The new OmniSSHAgent will no longer try to be a complete SSH agent and key manager. Instead, it will act as a Windows-native compatibility bridge between an OpenSSH-compatible backend and applications that still require Pageant or Cygwin/MSYS2-compatible interfaces.
+Windows OpenSSH remains the default backend. In that mode, OmniSSHAgent acts as a Windows-native compatibility bridge between an external OpenSSH-compatible backend and applications that require Pageant or Cygwin/MSYS2-compatible interfaces.
+
+The project may also provide narrowly scoped alternative backends when they serve a different security or key-lifetime model. Those backends build on the same separation and do not restore the legacy persistent key-management architecture.
 
 ## Windows OpenSSH Has Become the Standard Foundation
 
@@ -32,9 +34,17 @@ Applications such as 1Password can expose the same Windows Named Pipe interface:
 
 By treating this Named Pipe as the standard backend interface, OmniSSHAgent can work with the Windows OpenSSH Authentication Agent, 1Password, and potentially other compatible implementations without needing to know how each backend stores or protects its keys.
 
-This also reduces the need for OmniSSHAgent to implement its own private key handling, passphrase storage, and in-memory keyring.
+With an external backend, key storage and signing are handled by software dedicated to those responsibilities. OmniSSHAgent can focus on protocol and interface compatibility.
 
-Key storage and signing should be handled by software dedicated to those responsibilities. OmniSSHAgent should focus on protocol and interface compatibility.
+## Why an Embedded Agent Backend Exists
+
+The Windows OpenSSH Authentication Agent remains the recommended default backend, but not every workflow requires the same key-lifetime semantics.
+
+Some users intentionally want SSH keys to exist only for the lifetime of a desktop agent process. [KeePassXC SSH Agent integration](https://keepassxc.org/docs/KeePassXC_UserGuide) acts as a client of an existing agent: it can add keys when a database is unlocked and remove them when it is locked.
+
+For these workflows, persistent key availability across Windows sessions may not be desirable. OmniSSHAgent therefore provides an optional embedded backend that accepts standard SSH agent requests and retains loaded keys only in process memory.
+
+The embedded backend does not persist private keys, private-key paths, or decryption passphrases, and it does not automatically reload keys after OmniSSHAgent restarts. It is a small SSH agent protocol component rather than a persistent key-management subsystem.
 
 ## Windows SSH Agent Interfaces Are Still Fragmented
 
@@ -51,7 +61,7 @@ Some applications use the Windows OpenSSH Named Pipe directly. Others, including
 
 This fragmentation remains the problem OmniSSHAgent is best positioned to solve.
 
-The redesigned OmniSSHAgent will not introduce another key store. It will connect existing applications to an existing OpenSSH-compatible agent.
+The redesigned OmniSSHAgent will not introduce another persistent key store. It connects applications to a selected SSH agent backend.
 
 ## Problems in the Current Architecture
 
@@ -112,9 +122,9 @@ For WSL setup, see:
 
 ## The New Role of OmniSSHAgent
 
-The redesigned OmniSSHAgent will be a Windows-only SSH agent compatibility bridge.
+The redesigned OmniSSHAgent is a Windows-only SSH agent backend and interface bridge.
 
-Its default architecture is:
+Its default backend architecture is:
 
 ```text
 OpenSSH-compatible Windows agent
@@ -128,11 +138,21 @@ OpenSSH-compatible Windows agent
                +-- Cygwin/MSYS2-compatible interface
 ```
 
-OmniSSHAgent will not own or persist private keys.
+Its embedded backend architecture is:
 
-It will receive SSH agent requests from Pageant-compatible or Cygwin/MSYS2-compatible clients, forward those requests to the configured OpenSSH-compatible backend, and return the backend response to the client.
+```text
+         OmniSSHAgent
+               |
+       embedded keyring
+          /    |    \
+   OpenSSH  Pageant  Cygwin/MSYS2
+```
 
-The first MVP will focus on:
+The two modes share the same Pageant and Cygwin/MSYS2 interface implementations. The difference is where key retention and signing take place. External mode forwards requests to the configured OpenSSH-compatible agent. Embedded mode signs with keys retained by the OmniSSHAgent process and also exposes the standard OpenSSH Named Pipe.
+
+Neither mode persists private keys or decryption passphrases.
+
+The initial redesigned MVP focused on:
 
 - Windows system tray residency
 - TOML-based configuration
@@ -146,7 +166,7 @@ The first MVP will focus on:
 - Predictable and safe shutdown behavior
 - Diagnostic CLI commands
 
-The first MVP will not include:
+The initial redesigned MVP did not include:
 
 - Wails
 - WebView2
@@ -158,23 +178,37 @@ The first MVP will not include:
 - Automatic update functionality
 - A plugin system
 
-These features may be reconsidered later as independent, clearly scoped additions.
+These features were left for independent, clearly scoped additions.
+
+The embedded backend is one such addition. It reintroduces only an ephemeral SSH agent protocol keyring and Named Pipe interface, not the legacy metadata store, Credential Manager integration, automatic key reload, Wails UI, PPK management, or WSL transport.
 
 ## Goals of the Redesign
 
 The redesign is not simply a reduction in features. It is a redefinition of the project's value in the current Windows SSH ecosystem.
 
-### Avoid Conflicting with Windows Standard Components
+### Avoid Conflicting with Windows Standard Components by Default
 
-Users should no longer need to disable the Windows OpenSSH Authentication Agent service in order to use OmniSSHAgent.
+Windows OpenSSH remains the default backend, and OmniSSHAgent does not disable or replace it automatically.
 
-Windows OpenSSH will be the default backend rather than a competing implementation.
+The embedded backend is an explicit opt-in mode. Its OpenSSH interface must own the standard OpenSSH Named Pipe, so another agent, including the Windows OpenSSH Authentication Agent, cannot own that pipe at the same time. OmniSSHAgent never stops or disables the Windows service automatically.
 
-### Delegate Key Security to Specialized Backends
+### Keep Persistent Key Management Outside OmniSSHAgent
 
-Private key storage, passphrase handling, hardware-backed security, and signing policy should be handled by the selected backend, such as Windows OpenSSH or 1Password.
+When an external backend is selected, key storage, passphrase handling, hardware-backed security, signing policy, and signing remain the responsibility of that backend.
 
-OmniSSHAgent will not duplicate those security-sensitive responsibilities.
+When the embedded backend is selected, OmniSSHAgent temporarily holds key material in process memory so it can perform SSH agent signing operations. It does not persist key material, remember private-key file paths, store decryption passphrases, or reload keys after restart.
+
+| Legacy OmniSSHAgent | Embedded backend |
+| --- | --- |
+| Remembered key files | Does not remember paths |
+| Stored passphrases in Credential Manager | Does not store passphrases |
+| Restored configured keys after restart | Starts empty |
+| Maintained custom key metadata | Has no metadata store |
+| Used a Wails key manager | Uses the native shared Settings and Manage keys UI |
+| Managed PPK files | Does not support PPK management |
+| Included WSL transport | Leaves WSL transport to Pipeferry |
+| Implemented SSH agent signing | Implements SSH agent signing |
+| Exposed OpenSSH, Pageant, and Cygwin interfaces | Reuses the redesigned interface components |
 
 ### Preserve Compatibility with Existing Applications
 
@@ -212,13 +246,14 @@ However, some workflows will change.
 
 ### Users Who Currently Store Keys in OmniSSHAgent
 
-The redesigned MVP will not load or store private keys directly.
+The redesigned application does not restore legacy key configuration or persisted passphrases.
 
-Keys must instead be added to the selected backend, such as:
+Keys must be added to the selected backend, such as:
 
 - Windows OpenSSH Authentication Agent
 - 1Password SSH Agent
-- Another future OpenSSH Named Pipe-compatible backend
+- Another OpenSSH Named Pipe-compatible backend
+- The embedded ephemeral backend, which starts empty after every process restart
 
 ### Users Who Currently Use OmniSSHAgent from WSL
 
@@ -250,7 +285,7 @@ OmniSSHAgent will continue to reduce that fragmentation.
 
 What changes is how it solves the problem.
 
-Instead of becoming another complete SSH agent, OmniSSHAgent will become a small, focused, and robust compatibility bridge around the OpenSSH-compatible interface that has emerged as the standard foundation on Windows.
+Instead of becoming another monolithic key manager, OmniSSHAgent separates a selected SSH agent backend from the Windows interfaces that clients use.
 
 ## Conclusion
 
@@ -264,9 +299,9 @@ Windows now includes OpenSSH, password managers can provide OpenSSH-compatible a
 
 The redesigned OmniSSHAgent will therefore focus on one responsibility:
 
-> Connect Windows applications that use legacy or environment-specific SSH agent interfaces to an OpenSSH-compatible Windows SSH agent.
+> Connect Windows applications that use different SSH agent interfaces to a selected SSH agent backend.
 
-This narrower role should make OmniSSHAgent easier to understand, safer to operate, simpler to test, and more sustainable to maintain.
+The redesign established boundaries between backends, compatibility interfaces, application lifecycle, and WSL transport. Adding an embedded backend builds on those boundaries rather than returning to the legacy monolithic architecture.
 
 ## Related Documents
 

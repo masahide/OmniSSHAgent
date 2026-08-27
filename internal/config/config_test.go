@@ -15,8 +15,31 @@ func TestDefaultValidate(t *testing.T) {
 	if rt.BackendPipePath != `\\.\pipe\openssh-ssh-agent` {
 		t.Fatalf("pipe = %q", rt.BackendPipePath)
 	}
+	if rt.BackendType != BackendWindowsOpenSSH {
+		t.Fatalf("backend type = %q", rt.BackendType)
+	}
 	if !rt.PageantEnabled || !rt.CygwinEnabled {
 		t.Fatal("interfaces should be enabled")
+	}
+}
+
+func TestEmbeddedBackendIgnoresExternalBackendFields(t *testing.T) {
+	cfg := Default()
+	cfg.Backend.Type = BackendEmbedded
+	cfg.Backend.Pipe = ""
+	cfg.Backend.ConnectTimeout = "not-a-duration"
+	rt, err := Validate(cfg, `C:\cfg.toml`, `C:\logs`, `C:\Users\tester`)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if rt.BackendType != BackendEmbedded {
+		t.Fatalf("backend type = %q", rt.BackendType)
+	}
+	if rt.BackendPipePath != "" {
+		t.Fatalf("embedded backend pipe = %q", rt.BackendPipePath)
+	}
+	if rt.ConnectTimeout != DefaultConnectTimeout {
+		t.Fatalf("embedded internal timeout = %s", rt.ConnectTimeout)
 	}
 }
 
